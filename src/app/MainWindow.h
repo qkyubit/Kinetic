@@ -71,7 +71,7 @@ private:
     QAction *undoAct_, *redoAct_, *cutAct_, *copyAct_, *pasteAct_, *duplicateAct_, *deleteAct_, *selectAllAct_;
     QAction *groupAct_, *ungroupAct_, *freezeAct_;
     QAction *selectToolAct_, *moveAct_, *rotateAct_, *scaleAct_, *rulerAct_, *protractorAct_, *drawAct_;
-    QAction *snapAct_, *gridAct_, *zoomFitAct_, *resetLayoutAct_;
+    QAction *snapAct_, *gridAct_, *zoomFitAct_, *resetLayoutAct_, *statsAct_;
     QMenu* viewMenu_;
     QMenu* examplesMenu_;
 };

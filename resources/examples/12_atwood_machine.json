@@ -1,0 +1,183 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "Ground",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 2400,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 1,
+                "kineticFriction": 0.5,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Concrete",
+                "position": [
+                    0,
+                    -0.5
+                ],
+                "restitution": 0.2,
+                "showForces": false,
+                "staticFriction": 0.62,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 40
+            },
+            "type": "body.ground"
+        },
+        {
+            "id": 2,
+            "name": "Heavy (2 kg)",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f39c1fff",
+                "density": 12.499999999999998,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.4,
+                "kineticFriction": 0.3,
+                "label": "2 kg",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -0.6,
+                    2
+                ],
+                "restitution": 0.45,
+                "showForces": true,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.4
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 3,
+            "name": "Light (1 kg)",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 6.249999999999999,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.4,
+                "kineticFriction": 0.3,
+                "label": "1 kg",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    0.6,
+                    2
+                ],
+                "restitution": 0.45,
+                "showForces": true,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.4
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 4,
+            "name": "Pulley 4",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    0,
+                    0
+                ],
+                "bodyA": 2,
+                "bodyB": 3,
+                "collideConnected": false,
+                "color": "#a0522dff",
+                "groundA": [
+                    -0.6,
+                    5
+                ],
+                "groundB": [
+                    0.6,
+                    5
+                ],
+                "length": 6,
+                "ratio": 1
+            },
+            "type": "connector.pulley"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            0,
+            2.5
+        ],
+        "pixelsPerMetre": 90
+    },
+    "world": {
+        "airDensity": 1.225,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravity": [
+            0,
+            -9.81
+        ],
+        "jointDamping": 2,
+        "jointHertz": 60,
+        "keyframeInterval": 240,
+        "physicsHz": 120,
+        "restitutionThreshold": 1,
+        "sleep": true,
+        "substeps": 4
+    }
+}

@@ -120,3 +120,8 @@ if(KINETIC_BUILD_TOOLS)
         BASE resources
         FILES ${KINETIC_EXAMPLES} ${KINETIC_ICONS} resources/io.github.kinetic.Kinetic.svg)
 endif()
+if(KINETIC_BUILD_TOOLS)
+    # Regenerates resources/examples/*.json from tools/make_examples.cpp.
+    add_executable(kinetic-make-examples tools/make_examples.cpp)
+    target_link_libraries(kinetic-make-examples PRIVATE kinetic_core kinetic_warnings)
+endif()

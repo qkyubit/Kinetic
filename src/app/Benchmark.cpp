@@ -3,6 +3,7 @@
 #include "core/AllocCounter.h"
 #include "core/Scene.h"
 #include "core/Sim.h"
+#include "core/TaskPool.h"
 
 #include <QCommandLineParser>
 #include <QCoreApplication>
@@ -34,6 +35,7 @@ int runBenchmark(int argc, char** argv)
     p.addOption({QStringLiteral("steps"), QStringLiteral("Physics steps to time."), QStringLiteral("N"), QStringLiteral("1200")});
     p.addOption({QStringLiteral("warmup"), QStringLiteral("Untimed steps first."), QStringLiteral("W"), QStringLiteral("120")});
     p.addOption({QStringLiteral("record"), QStringLiteral("Enable replay recording (keyframes).")});
+    p.addOption({QStringLiteral("threads"), QStringLiteral("Physics worker threads (0 = automatic)."), QStringLiteral("N"), QStringLiteral("0")});
     p.addHelpOption();
     p.process(app);
 
@@ -48,6 +50,7 @@ int runBenchmark(int argc, char** argv)
         std::fprintf(stderr, "kinetic: %s: %s\n", qPrintable(path), qPrintable(r.error));
         return 2;
     }
+    TaskPool::configure(p.value(QStringLiteral("threads")).toInt());
     const long steps = std::max(1L, p.value(QStringLiteral("steps")).toLong());
     const long warmup = std::max(0L, p.value(QStringLiteral("warmup")).toLong());
 
@@ -66,7 +69,7 @@ int runBenchmark(int argc, char** argv)
 
     std::vector<double> times;
     times.reserve(size_t(steps));
-    uint64_t allocSteps = 0, allocKeyframes = 0, allocPublish = 0;
+    uint64_t allocSteps = 0, allocKeyframes = 0, allocPublish = 0, allocBox2d = 0, stepsWithAllocs = 0;
     using Clock = std::chrono::steady_clock;
     for (long i = 0; i < steps; ++i) {
         const bool keyframeStep = st.recording && core.step() % interval == 0;
@@ -74,7 +77,14 @@ int runBenchmark(int argc, char** argv)
         const auto t0 = Clock::now();
         core.advance();
         const auto t1 = Clock::now();
-        (keyframeStep ? allocKeyframes : allocSteps) += scope.count();
+        if (keyframeStep) {
+            allocKeyframes += scope.count();
+        } else {
+            const uint64_t n = core.world()->lastStepAllocations();
+            allocSteps += n;
+            allocBox2d += core.world()->lastStepBox2dAllocations();
+            stepsWithAllocs += n > 0 ? 1 : 0;
+        }
         times.push_back(std::chrono::duration<double, std::milli>(t1 - t0).count());
         const alloc::Scope pub;
         core.writeSnapshot(snap);
@@ -90,13 +100,15 @@ int runBenchmark(int argc, char** argv)
     std::printf("Kinetic benchmark\n");
     std::printf("scene:        %s (%zu items, %zu bodies)\n", qPrintable(QFileInfo(path).fileName()), r.scene.items.size(),
                 snap.bodies.size());
-    std::printf("steps:        %ld timed after %ld warm-up, %d Hz, %d sub-steps, recording %s\n", steps, warmup, ws.hz,
-                ws.substeps, st.recording ? "on" : "off");
+    std::printf("steps:        %ld timed after %ld warm-up, %d Hz, %d sub-steps, %d worker threads, recording %s\n",
+                steps, warmup, ws.hz, ws.substeps, TaskPool::instance()->workerCount(), st.recording ? "on" : "off");
     std::printf("ms per step:  mean %.3f  median %.3f  p95 %.3f  max %.3f\n", mean, pct(0.5), pct(0.95), sorted.back());
     std::printf("real time:    %.1fx faster than real time at %d Hz\n", (1000.0 / ws.hz) / mean, ws.hz);
     if (alloc::available()) {
-        std::printf("allocations:  physics steps %llu (%.3f per step)\n", (unsigned long long)allocSteps,
-                    double(allocSteps) / double(steps));
+        std::printf("allocations:  physics steps %llu total in %llu of %ld steps: %llu by Kinetic code, "
+                    "%llu inside Box2D (pool growth, islands falling asleep/waking)\n",
+                    (unsigned long long)allocSteps, (unsigned long long)stepsWithAllocs, steps,
+                    (unsigned long long)(allocSteps - allocBox2d), (unsigned long long)allocBox2d);
         if (st.recording)
             std::printf("              keyframe steps %llu (capture + rebuild every %llu steps)\n",
                         (unsigned long long)allocKeyframes, (unsigned long long)interval);

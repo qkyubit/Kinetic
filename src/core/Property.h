@@ -103,6 +103,8 @@ public:
     const std::vector<PropDef>& defs() const { return defs_; }
     int size() const { return int(defs_.size()); }
     const PropDef& operator[](int i) const { return defs_[size_t(i)]; }
+    // Mutable access for subclasses adjusting inherited defaults.
+    PropDef& at(int i) { return defs_[size_t(i)]; }
     int indexOf(const QString& key) const;
 
     // Builders. Each returns the new definition so modifiers can be chained.

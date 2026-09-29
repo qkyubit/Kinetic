@@ -1,0 +1,183 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "Crank",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#95a5a6ff",
+                "density": 300,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    0,
+                    3
+                ],
+                "radius": 1.2,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 2,
+            "name": "Slider block",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f39c1fff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.5,
+                "kineticFriction": 0.57,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Steel",
+                "position": [
+                    4,
+                    3
+                ],
+                "restitution": 0.6,
+                "showForces": false,
+                "staticFriction": 0.74,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.8
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 3,
+            "name": "Motor 3",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    0,
+                    3
+                ],
+                "bodyA": 1,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#d35400ff",
+                "maxTorque": 10000000,
+                "mode": "Speed",
+                "referenceAngle": 0,
+                "speed": 3,
+                "torque": 500
+            },
+            "type": "mechanism.motor"
+        },
+        {
+            "id": 4,
+            "name": "Rod 4",
+            "props": {
+                "anchorA": [
+                    1,
+                    0
+                ],
+                "anchorB": [
+                    0,
+                    0
+                ],
+                "bodyA": 1,
+                "bodyB": 2,
+                "collideConnected": false,
+                "color": "#7f8c8dff",
+                "length": 3
+            },
+            "type": "connector.rod"
+        },
+        {
+            "id": 5,
+            "name": "Slider 5",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    4,
+                    3
+                ],
+                "axisAngle": 0,
+                "bodyA": 2,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#95a5a6ff",
+                "enableLimit": false,
+                "enableMotor": false,
+                "lower": -1,
+                "maxMotorForce": 10000,
+                "motorSpeed": 1,
+                "referenceAngle": 0,
+                "upper": 1
+            },
+            "type": "connector.slider"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            2,
+            3
+        ],
+        "pixelsPerMetre": 70
+    },
+    "world": {
+        "airDensity": 1.225,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravity": [
+            0,
+            -9.81
+        ],
+        "jointDamping": 2,
+        "jointHertz": 60,
+        "keyframeInterval": 240,
+        "physicsHz": 120,
+        "restitutionThreshold": 1,
+        "sleep": true,
+        "substeps": 4
+    }
+}

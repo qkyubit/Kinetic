@@ -1,0 +1,331 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "Ball",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -2.7039274201851065,
+                    2.523993155270965
+                ],
+                "radius": 0.25,
+                "restitution": 1,
+                "showForces": false,
+                "staticFriction": 0,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 2,
+            "name": "Rod 2",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    -1.01,
+                    5
+                ],
+                "bodyA": 1,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#7f8c8dff",
+                "length": 3.0000000000000004
+            },
+            "type": "connector.rod"
+        },
+        {
+            "id": 3,
+            "name": "Ball",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -0.505,
+                    2
+                ],
+                "radius": 0.25,
+                "restitution": 1,
+                "showForces": false,
+                "staticFriction": 0,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 4,
+            "name": "Rod 4",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    -0.505,
+                    5
+                ],
+                "bodyA": 3,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#7f8c8dff",
+                "length": 3
+            },
+            "type": "connector.rod"
+        },
+        {
+            "id": 5,
+            "name": "Ball",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    0,
+                    2
+                ],
+                "radius": 0.25,
+                "restitution": 1,
+                "showForces": false,
+                "staticFriction": 0,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 6,
+            "name": "Rod 6",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    0,
+                    5
+                ],
+                "bodyA": 5,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#7f8c8dff",
+                "length": 3
+            },
+            "type": "connector.rod"
+        },
+        {
+            "id": 7,
+            "name": "Ball",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    0.505,
+                    2
+                ],
+                "radius": 0.25,
+                "restitution": 1,
+                "showForces": false,
+                "staticFriction": 0,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 8,
+            "name": "Rod 8",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    0.505,
+                    5
+                ],
+                "bodyA": 7,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#7f8c8dff",
+                "length": 3
+            },
+            "type": "connector.rod"
+        },
+        {
+            "id": 9,
+            "name": "Ball",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    1.01,
+                    2
+                ],
+                "radius": 0.25,
+                "restitution": 1,
+                "showForces": false,
+                "staticFriction": 0,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 10,
+            "name": "Rod 10",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    1.01,
+                    5
+                ],
+                "bodyA": 9,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#7f8c8dff",
+                "length": 3
+            },
+            "type": "connector.rod"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            0,
+            3
+        ],
+        "pixelsPerMetre": 80
+    },
+    "world": {
+        "airDensity": 1.225,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravity": [
+            0,
+            -9.81
+        ],
+        "jointDamping": 2,
+        "jointHertz": 240,
+        "keyframeInterval": 960,
+        "physicsHz": 480,
+        "restitutionThreshold": 0.01,
+        "sleep": false,
+        "substeps": 4
+    }
+}

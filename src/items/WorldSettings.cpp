@@ -26,6 +26,13 @@ public:
             .tip(QStringLiteral("Constraint stiffness of joints (Box2D soft step). Capped at a quarter of the "
                                 "sub-step rate."));
         s.num(QStringLiteral("jointDamping"), QStringLiteral("Joint damping ratio"), unit::none, 0, 20, 2, 2);
+        s.num(QStringLiteral("contactHertz"), QStringLiteral("Contact stiffness"), unit::hz, 1, 1000, 30, 1)
+            .log()
+            .tip(QStringLiteral("Contact softness of Box2D's soft-step solver (higher = stiffer, capped by the sub-step "
+                                "rate)."));
+        s.num(QStringLiteral("contactDamping"), QStringLiteral("Contact damping ratio"), unit::none, 0, 100, 10, 2);
+        s.num(QStringLiteral("restitutionThreshold"), QStringLiteral("Restitution threshold"), unit::mps, 0, 10, 1, 3)
+            .tip(QStringLiteral("Impacts slower than this are treated as perfectly inelastic (Box2D's default is 1 m/s)."));
         s.beginGroup(QStringLiteral("Environment"));
         s.num(QStringLiteral("airDensity"), QStringLiteral("Air density"), unit::density, 0, 20, 1.225, 3)
             .tip(QStringLiteral("Used by wind and fans."));

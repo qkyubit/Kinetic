@@ -1,0 +1,91 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "Bob",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.57,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Steel",
+                "position": [
+                    3,
+                    5
+                ],
+                "radius": 0.25,
+                "restitution": 0.6,
+                "showForces": false,
+                "staticFriction": 0.74,
+                "trail": true,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 2,
+            "name": "String",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    0,
+                    5
+                ],
+                "bodyA": 1,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#7f8c8dff",
+                "length": 3
+            },
+            "type": "connector.rod"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            0,
+            3
+        ],
+        "pixelsPerMetre": 70
+    },
+    "world": {
+        "airDensity": 1.225,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravity": [
+            0,
+            -9.81
+        ],
+        "jointDamping": 2,
+        "jointHertz": 240,
+        "keyframeInterval": 240,
+        "physicsHz": 120,
+        "restitutionThreshold": 1,
+        "sleep": true,
+        "substeps": 4
+    }
+}

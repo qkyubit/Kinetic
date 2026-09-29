@@ -14,3 +14,4 @@ kinetic_test(test_undo)
 kinetic_test(test_physics)
 # Milestone acceptance tests
 kinetic_test(test_acceptance_m1)
+kinetic_test(test_acceptance_m2)

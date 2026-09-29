@@ -9,6 +9,8 @@
 #include <QElapsedTimer>
 #include <QTest>
 
+#include <cstdio>
+
 using namespace kn;
 
 namespace {
@@ -76,6 +78,27 @@ int main(int argc, char** argv)
              w.document()->setSelection({w.document()->scene().items[6].id});
              w.viewport()->setGizmo(Viewport::Gizmo::Scale);
          }},
+        {"stress",
+         [](MainWindow& w) {
+             w.openExample(QStringLiteral("stress"));
+             w.viewport()->setStatsVisible(true);
+             w.simulation()->play();
+             settle(1000);
+             const uint64_t f0 = w.viewport()->frames();
+             QElapsedTimer t;
+             t.start();
+             uint64_t maxAllocs = 0;
+             while (t.elapsed() < 4000) {
+                 QTest::qWait(5);
+                 if (w.viewport()->frames() > f0 + 5) maxAllocs = std::max(maxAllocs, w.viewport()->lastRenderAllocations());
+             }
+             const double fps = double(w.viewport()->frames() - f0) / (double(t.elapsed()) / 1000.0);
+             std::printf("stress: %.1f FPS over 4 s, render %.2f ms/frame, max allocations/frame %llu, physics %.2f ms/step, "
+                         "t=%.2f s\n",
+                         fps, w.viewport()->renderMs(), (unsigned long long)maxAllocs,
+                         double(w.simulation()->snapshot().stepMs), w.simulation()->snapshot().time);
+             w.simulation()->pause();
+         }},
         {"running",
          [](MainWindow& w) {
              editorScene(w);
@@ -85,7 +108,26 @@ int main(int argc, char** argv)
          }},
     };
 
-    for (const Scenario& s : scenarios) {
+    // "example:<name>[@seconds]" opens a bundled example and runs it.
+    std::vector<Scenario> all = scenarios;
+    std::vector<QByteArray> names;
+    for (const QString& wantedName : wanted) {
+        if (!wantedName.startsWith(QLatin1String("example:"))) continue;
+        names.push_back(wantedName.toUtf8());
+    }
+    for (const QByteArray& n : names) {
+        all.push_back({n.constData(), [n](MainWindow& w) {
+                           const QString spec = QString::fromUtf8(n).mid(8);
+                           const double seconds = spec.contains(QLatin1Char('@')) ? spec.section(QLatin1Char('@'), 1).toDouble() : 2.0;
+                           w.openExample(spec.section(QLatin1Char('@'), 0, 0));
+                           if (seconds > 0) {
+                               w.simulation()->play();
+                               settle(int(seconds * 1000));
+                               w.simulation()->pause();
+                           }
+                       }});
+    }
+    for (const Scenario& s : all) {
         if (!wanted.isEmpty() && !wanted.contains(QLatin1String(s.name))) continue;
         MainWindow w;
         w.resize(1400, 860);

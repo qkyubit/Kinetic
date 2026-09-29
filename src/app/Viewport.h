@@ -58,6 +58,17 @@ public:
     const RenderBatch& batch() const { return batch_; }
     const ThemeColors& theme() const { return theme_; }
     uint64_t lastRenderAllocations() const { return lastAllocs_; }
+    const SimController* simulation() const { return sim_; }
+    // Rendering statistics (shown by View > Performance Statistics).
+    double fps() const { return fps_; }
+    double renderMs() const { return renderMs_; }
+    uint64_t frames() const { return frames_; }
+    bool statsVisible() const { return showStats_; }
+    void setStatsVisible(bool on)
+    {
+        showStats_ = on;
+        update();
+    }
     const BodySnap* bodySnap(ItemId id) const;
     const ItemSnap* itemSnap(ItemId id) const;
     // Topmost selectable item at a screen point (bodies only if bodiesOnly).
@@ -163,8 +174,10 @@ private:
     mutable uint64_t indexedVersion_ = ~0ull;
     mutable uint64_t indexedGeneration_ = ~0ull;
     mutable const Snapshot* indexedSnap_ = nullptr;
-    mutable std::unordered_map<ItemId, int> bodyIndex_;
-    mutable std::unordered_map<ItemId, int> itemIndex_;
+    // Item id -> index into the snapshot arrays (-1: absent). Ids are small and
+    // dense, so flat arrays re-index without allocating.
+    mutable std::vector<int> bodyIndex_;
+    mutable std::vector<int> itemIndex_;
     std::unordered_set<ItemId> selected_;
     ItemDef ghost_;
 
@@ -173,6 +186,10 @@ private:
     RenderBatch batch_;
     uint64_t lastAllocs_ = 0;
     uint64_t frames_ = 0;
+    bool showStats_ = false;
+    double fps_ = 0, renderMs_ = 0;
+    qint64 fpsWindowStart_ = 0;
+    int fpsFrames_ = 0;
     QRhi* rhi_ = nullptr;
     std::unique_ptr<QRhiBuffer> ubuf_, quad_, segBuf_, discBuf_, triBuf_;
     std::unique_ptr<QRhiShaderResourceBindings> srb_;

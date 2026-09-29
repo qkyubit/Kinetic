@@ -73,6 +73,28 @@ void ViewportOverlay::paintEvent(QPaintEvent*)
         drawTextWithHalo(p, QPointF((width() - w) * 0.5, 8 + fm.ascent()), hint, tc, halo);
     }
 
+    if (vp_->statsVisible()) {
+        const Snapshot& s = vp_->simulation()->snapshot();
+        const bool live = vp_->simulation()->live();
+        QStringList lines;
+        lines << tr("%1 FPS   render %2 ms   %3 allocations/frame")
+                     .arg(vp_->fps(), 0, 'f', 1)
+                     .arg(vp_->renderMs(), 0, 'f', 2)
+                     .arg(vp_->lastRenderAllocations());
+        if (live)
+            lines << tr("physics %1 ms/step   %2 bodies   %3 allocations/step (%4 inside Box2D)")
+                         .arg(s.stepMs, 0, 'f', 2)
+                         .arg(s.bodies.size())
+                         .arg(s.stepAllocs)
+                         .arg(s.stepBox2dAllocs);
+        double y = 8 + fm.ascent();
+        for (const QString& l : lines) {
+            const double w = fm.horizontalAdvance(l);
+            drawTextWithHalo(p, QPointF(width() - w - 10, y), l, tc, halo);
+            y += fm.height();
+        }
+    }
+
     for (auto& fn : painters_) fn(p);
 }
 

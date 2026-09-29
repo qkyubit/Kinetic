@@ -20,6 +20,9 @@ struct WorldSettings {
     double jointHertz = 60.0;
     double jointDamping = 2.0;
     double coulombSoftening = 0.05;
+    double restitutionThreshold = 1.0;
+    double contactHertz = 30.0;
+    double contactDamping = 10.0;
     int keyframeInterval = 240;
 
     static WorldSettings fromDef(const ItemDef& worldDef);
@@ -38,6 +41,7 @@ struct BodyRec {
     float dragCoefficient = 1.0f;
     float muStatic = 0.6f, muKinetic = 0.6f;
     bool sliding = false;
+    bool slidingNext = false;
     bool refreshForces = true;
     float tangentSpeed = 0.0f; // conveyor surface speed of this body's shapes
     std::vector<Shape> shapes;     // local geometry, used by fluids/wind
@@ -99,10 +103,29 @@ public:
     b2BodyId groundBody() const { return ground_; }
     const WorldSettings& settings() const { return settings_; }
     float dt() const { return 1.0f / float(settings_.hz); }
+    // External forces are held constant over Box2D's n sub-steps, which moves
+    // positions by (n+1)/(2n)·dt²·F/m instead of symplectic Euler's dt²·F/m and
+    // makes explicit position-dependent forces gain energy. Evaluating such
+    // forces at the predicted position x + alpha·dt·v with alpha = (n-1)/(2n)
+    // makes the step exactly area-preserving for linear forces (springs) and
+    // restores bounded energy error for smooth fields.
+    float predictAlpha() const { return float(settings_.substeps - 1) / float(2 * settings_.substeps); }
+    // Position of a body-fixed world point, extrapolated as described above.
+    b2Vec2 predictPoint(int bodyIndex, b2Vec2 p) const
+    {
+        const BodyRec& b = bodies_[size_t(bodyIndex)];
+        if (b.type == b2_staticBody) return p;
+        const b2Vec2 v = b2Add(b.v, b2CrossSV(b.w, b2Sub(p, b.com)));
+        return b2MulAdd(p, predictAlpha() * dt(), v);
+    }
     double time() const { return time_; }
     uint64_t stepIndex() const { return step_; }
     void setClock(uint64_t step, double time) { step_ = step; time_ = time; }
     uint64_t structureVersion() const { return structureVersion_; }
+    // Heap allocations during the last step (all threads), and how many of
+    // them Box2D made from its own allocator.
+    uint64_t lastStepAllocations() const { return stepAllocs_; }
+    uint64_t lastStepBox2dAllocations() const { return stepBox2dAllocs_; }
 
     int registerBody(ItemId item, b2BodyId id);
     void unregisterBody(int index);
@@ -140,6 +163,9 @@ private:
     std::vector<size_t> dependentsOf(ItemId id) const;
     void reindex();
     void computeContactForces();
+    void contactsForBody(int index, std::vector<b2ContactData>& scratch);
+    int indexOfBody(b2BodyId id) const;
+    b2Vec2 pointVelocity(int index, b2Vec2 p) const;
     void updateFrictionState(BodyRec& b);
     void refreshBodyState(BodyRec& b);
     void applySettings();
@@ -153,12 +179,14 @@ private:
     std::vector<BodyRec> bodies_;
     std::vector<int> freeBodies_;
     std::unordered_map<ItemId, int> bodyIndex_;
-    std::vector<b2ContactData> contactScratch_;
+    std::vector<std::vector<b2ContactData>> contactScratch_; // one per worker
     std::vector<std::pair<QString, double>> constants_;
     uint64_t constantsVersion_ = 0;
     uint64_t step_ = 0;
     double time_ = 0.0;
     uint64_t structureVersion_ = 1;
+    bool statesDirty_ = true;
+    uint64_t stepAllocs_ = 0, stepBox2dAllocs_ = 0;
     mutable bool baselineValid_ = false;
     mutable double baseline_ = 0.0;
 };

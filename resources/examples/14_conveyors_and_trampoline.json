@@ -1,0 +1,401 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "Ground",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 2400,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 1,
+                "kineticFriction": 0.5,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Concrete",
+                "position": [
+                    0,
+                    -0.5
+                ],
+                "restitution": 0.2,
+                "showForces": false,
+                "staticFriction": 0.62,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 40
+            },
+            "type": "body.ground"
+        },
+        {
+            "id": 2,
+            "name": "Conveyor 2",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#34495eff",
+                "density": 1100,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.4,
+                "kineticFriction": 0.8,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Rubber",
+                "position": [
+                    -3,
+                    3
+                ],
+                "restitution": 0.8,
+                "showForces": false,
+                "staticFriction": 1,
+                "surfaceSpeed": 2,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 6
+            },
+            "type": "mechanism.conveyor"
+        },
+        {
+            "id": 3,
+            "name": "Conveyor 3",
+            "props": {
+                "angle": -0.1,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#34495eff",
+                "density": 1100,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.4,
+                "kineticFriction": 0.8,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Rubber",
+                "position": [
+                    3,
+                    1.5
+                ],
+                "restitution": 0.8,
+                "showForces": false,
+                "staticFriction": 1,
+                "surfaceSpeed": -1.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 6
+            },
+            "type": "mechanism.conveyor"
+        },
+        {
+            "id": 4,
+            "name": "Trampoline 4",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#2980b9ff",
+                "density": 1100,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.25,
+                "kineticFriction": 0.8,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -3,
+                    0.2
+                ],
+                "restitution": 0.95,
+                "showForces": false,
+                "staticFriction": 1,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 3
+            },
+            "type": "mechanism.trampoline"
+        },
+        {
+            "id": 5,
+            "name": "Box 5",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f39c1fff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.5,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    -5.2,
+                    3.6
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.5
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 6,
+            "name": "Box 6",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f39c1fff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.5,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    -4.5,
+                    3.6
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.5
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 7,
+            "name": "Box 7",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f39c1fff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.5,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    -3.8000000000000003,
+                    3.6
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.5
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 8,
+            "name": "Box 8",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f39c1fff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.5,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    -3.1000000000000005,
+                    3.6
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.5
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 9,
+            "name": "Circle 9",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 1100,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.8,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Rubber",
+                "position": [
+                    -3,
+                    6
+                ],
+                "radius": 0.3,
+                "restitution": 0.8,
+                "showForces": false,
+                "staticFriction": 1,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            0,
+            2.5
+        ],
+        "pixelsPerMetre": 60
+    },
+    "world": {
+        "airDensity": 1.225,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravity": [
+            0,
+            -9.81
+        ],
+        "jointDamping": 2,
+        "jointHertz": 60,
+        "keyframeInterval": 240,
+        "physicsHz": 120,
+        "restitutionThreshold": 1,
+        "sleep": true,
+        "substeps": 4
+    }
+}

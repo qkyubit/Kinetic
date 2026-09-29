@@ -61,9 +61,70 @@ Box2D recomputes contact friction every update, so the change takes effect next 
 Mixing between two materials uses Box2D's defaults (geometric mean for friction,
 maximum for restitution).
 
-**Single-threaded Box2D.** `workerCount = 1`. Box2D v3 is deterministic with any worker
-count, but one thread keeps the physics thread simple; the benchmark shows the 5,000
-body stress scene fits the budget (see README).
+**Box2D runs multithreaded on a small worker pool.**
+Alternatives: single-threaded; enkiTS (not in the Arch repos).
+Box2D v3 is deterministic for any worker count, so the count is a *machine* setting
+(automatic = min(4, logical cores / 2); `KINETIC_THREADS` or `--threads` override),
+never stored in scenes. The pool (`TaskPool`) is ~100 lines: workers sleep on a futex
+when idle (paused simulation costs no CPU), the physics thread helps with the task
+it waits for, which Box2D's lockstep solver tasks require. Claiming work takes a
+mutex per block; Box2D issues only a handful of coarse tasks per step, so this is
+not measurable and keeps slot reuse race-free. On the development machine the
+5,000-body scene went from 3.6 to 1.6 ms per step.
+
+**Contact force accounting runs in parallel too.** Each body's breakdown reads Box2D
+and writes only its own record, so a parallel-for over bodies gives identical
+results; the Box2D friction switches it may trigger are applied serially afterwards.
+
+**Explicit springs evaluated at a predicted position.**
+Alternatives: Box2D distance-joint springs (implicit, but they take a frequency and
+use a configuration-dependent effective mass, so a spring constant in N/m cannot be
+honoured and the elastic energy is not exactly ½kx²).
+External forces are held constant over Box2D's n sub-steps, so a step moves bodies by
+(n+1)/(2n)·dt²·F/m while changing their velocity by dt·F/m. That map is not
+area-preserving: an explicit spring gains ~0.26 % energy per step at 120 Hz. Evaluating
+position-dependent forces at x + α·dt·v with α = (n−1)/(2n) makes the map's
+determinant exactly 1 for linear forces (derivation in `World::predictAlpha`), so energy
+error stays bounded (±1 % for a 10 rad/s oscillator at 120 Hz) and periods match the
+analytic value to 0.03 %. Stiff springs are still limited by explicit integration
+(ω·dt < 2); the spring turns red in the viewport when a spring is near that limit.
+
+**Pulleys and gears are force-level constraints.** Box2D v3 removed both joints.
+Each step the constraint impulse is solved from the known external forces (gravity,
+forces applied earlier in the step, and last step's contact forces) so that the
+constraint's velocity error vanishes by the end of the step, plus Baumgarte
+correction of the position error. For an Atwood machine this reproduces the analytic
+tension exactly (13.0800 N vs 13.0800 N); a block resting on the floor holds the rope
+steadily because last step's normal force is part of the estimate.
+
+**Hinges, sliders and motors create the Box2D joint with the bodies swapped**, so the
+user-facing convention is "body A moves relative to body B (or the world)": positive
+motor speed turns the first-clicked body counter-clockwise, and a slider's
+translation is the first body's travel along the axis.
+
+**Pistons are prismatic joints**: the actuator also locks the relative rotation of its
+two ends (like a guided linear actuator). Pin the ends with hinges on intermediate
+bodies to model a hydraulic ram that pivots.
+
+**Static/kinetic friction mixing.** Box2D's friction callback has no context, and
+World switches each dynamic body's shapes between μs and μk. A process-wide,
+fixed-capacity table of (μs, μk) pairs is referenced by each shape's
+`userMaterialId`; the callback uses the kinetic values of *both* surfaces when either
+is sliding (a block sliding on static ground gets √(μk·μk'), not √(μk·μs')). The
+table never reallocates, so worker threads read it without locks.
+
+**Contact tuning and restitution threshold are scene settings.** Box2D treats impacts
+below 1 m/s as inelastic and its contacts are soft; both are exposed on the World.
+The Newton's cradle example uses a 480 Hz physics rate and 5 mm gaps between balls,
+which makes the momentum hand-over exact (the last ball leaves at 3.206 m/s for an
+analytic 3.21 m/s, the others stay at rest).
+
+**Allocation accounting separates Kinetic and Box2D.** Kinetic's per-step code and the
+snapshot publish make zero heap allocations after warm-up (regression-tested). Box2D
+allocates when its internal arrays grow past their previous maximum and when islands
+fall asleep or wake (each sleeping island gets its own solver set). Those are counted
+through `b2SetAllocator` and reported separately; they stop once a scene reaches a
+steady state.
 
 **The document holds initial conditions; the simulation is a live copy.**
 Alternatives: a single scene that *is* the simulation (Algodoo style).

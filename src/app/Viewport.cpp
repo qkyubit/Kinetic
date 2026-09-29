@@ -5,6 +5,7 @@
 #include "core/AllocCounter.h"
 #include "core/Geometry.h"
 
+#include <QElapsedTimer>
 #include <QFile>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -75,37 +76,41 @@ const ItemDef* Viewport::def(ItemId id) const { return doc_->item(id); }
 void Viewport::ensureSnapIndex() const
 {
     const Snapshot& s = sim_->snapshot();
-    if (s.structureVersion == indexedVersion_ && s.generation == indexedGeneration_ && &s == indexedSnap_) return;
     // Buffers rotate, but with an unchanged structure the ordering is the same.
-    const bool sameStructure = s.structureVersion == indexedVersion_ && s.generation == indexedGeneration_;
+    if (s.structureVersion == indexedVersion_ && s.generation == indexedGeneration_) return;
     indexedSnap_ = &s;
-    if (sameStructure && bodyIndex_.size() == s.bodies.size() && itemIndex_.size() == s.items.size()) return;
     indexedVersion_ = s.structureVersion;
     indexedGeneration_ = s.generation;
-    bodyIndex_.clear();
-    itemIndex_.clear();
-    for (size_t i = 0; i < s.bodies.size(); ++i) bodyIndex_[s.bodies[i].id] = int(i);
-    for (size_t i = 0; i < s.items.size(); ++i) itemIndex_[s.items[i].id] = int(i);
+    auto rebuild = [](std::vector<int>& index, const auto& vec) {
+        std::fill(index.begin(), index.end(), -1);
+        for (size_t i = 0; i < vec.size(); ++i) {
+            const ItemId id = vec[i].id;
+            if (id >= index.size()) index.resize(size_t(id) * 2 + 64, -1); // grows only with the scene
+            index[id] = int(i);
+        }
+    };
+    rebuild(bodyIndex_, s.bodies);
+    rebuild(itemIndex_, s.items);
 }
 
 const BodySnap* Viewport::bodySnap(ItemId id) const
 {
     if (!sim_->live()) return nullptr;
     ensureSnapIndex();
-    const auto it = bodyIndex_.find(id);
-    if (it == bodyIndex_.end()) return nullptr;
+    if (id >= bodyIndex_.size() || bodyIndex_[id] < 0) return nullptr;
     const auto& b = sim_->snapshot().bodies;
-    return size_t(it->second) < b.size() && b[size_t(it->second)].id == id ? &b[size_t(it->second)] : nullptr;
+    const size_t i = size_t(bodyIndex_[id]);
+    return i < b.size() && b[i].id == id ? &b[i] : nullptr;
 }
 
 const ItemSnap* Viewport::itemSnap(ItemId id) const
 {
     if (!sim_->live()) return nullptr;
     ensureSnapIndex();
-    const auto it = itemIndex_.find(id);
-    if (it == itemIndex_.end()) return nullptr;
+    if (id >= itemIndex_.size() || itemIndex_[id] < 0) return nullptr;
     const auto& v = sim_->snapshot().items;
-    return size_t(it->second) < v.size() && v[size_t(it->second)].id == id ? &v[size_t(it->second)] : nullptr;
+    const size_t i = size_t(itemIndex_[id]);
+    return i < v.size() && v[i].id == id ? &v[i] : nullptr;
 }
 
 bool Viewport::pose(ItemId id, Pose& out) const
@@ -1149,6 +1154,9 @@ void Viewport::render(QRhiCommandBuffer* cb)
 {
     alloc::Scope allocs;
     if (!segPipe_) return;
+    static QElapsedTimer clock;
+    if (!clock.isValid()) clock.start();
+    const qint64 t0 = clock.nsecsElapsed();
     buildFrame();
 
     // Concatenate layers; remember where each layer starts.
@@ -1229,6 +1237,15 @@ void Viewport::render(QRhiCommandBuffer* cb)
 
     lastAllocs_ = allocs.count();
     ++frames_;
+    const qint64 t1 = clock.nsecsElapsed();
+    const double ms = double(t1 - t0) / 1e6;
+    renderMs_ = renderMs_ == 0 ? ms : 0.9 * renderMs_ + 0.1 * ms;
+    ++fpsFrames_;
+    if (t1 - fpsWindowStart_ >= 1000000000LL) {
+        fps_ = fpsFrames_ * 1e9 / double(t1 - fpsWindowStart_);
+        fpsWindowStart_ = t1;
+        fpsFrames_ = 0;
+    }
     overlay_->update();
 }
 

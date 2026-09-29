@@ -1,0 +1,269 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "Driver",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f39c1fff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 1,
+                "material": "Wood",
+                "position": [
+                    -1,
+                    3
+                ],
+                "radius": 0.6,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 2,
+            "name": "Idler",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 2,
+                "linearDamping": 0,
+                "mask": 2,
+                "material": "Wood",
+                "position": [
+                    0.8,
+                    3
+                ],
+                "radius": 1.2,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 3,
+            "name": "Belt pulley",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#27ae60ff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 4,
+                "linearDamping": 0,
+                "mask": 4,
+                "material": "Wood",
+                "position": [
+                    3.8,
+                    3
+                ],
+                "radius": 0.6,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 4,
+            "name": "Motor 4",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    -1,
+                    3
+                ],
+                "bodyA": 1,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#d35400ff",
+                "maxTorque": 1000000,
+                "mode": "Speed",
+                "referenceAngle": 0,
+                "speed": 2,
+                "torque": 500
+            },
+            "type": "mechanism.motor"
+        },
+        {
+            "id": 5,
+            "name": "Hinge 5",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    0.8,
+                    3
+                ],
+                "bodyA": 2,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#95a5a6ff",
+                "enableLimit": false,
+                "enableMotor": false,
+                "lowerAngle": -0.7853981633974483,
+                "maxMotorTorque": 1000,
+                "motorSpeed": 1,
+                "referenceAngle": 0,
+                "upperAngle": 0.7853981633974483
+            },
+            "type": "connector.hinge"
+        },
+        {
+            "id": 6,
+            "name": "Hinge 6",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    3.8,
+                    3
+                ],
+                "bodyA": 3,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#95a5a6ff",
+                "enableLimit": false,
+                "enableMotor": false,
+                "lowerAngle": -0.7853981633974483,
+                "maxMotorTorque": 1000,
+                "motorSpeed": 1,
+                "referenceAngle": 0,
+                "upperAngle": 0.7853981633974483
+            },
+            "type": "connector.hinge"
+        },
+        {
+            "id": 7,
+            "name": "Gear 7",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    0,
+                    0
+                ],
+                "bodyA": 1,
+                "bodyB": 2,
+                "collideConnected": false,
+                "color": "#b7950bff",
+                "direction": "Opposite (meshing gears)",
+                "ratio": 2
+            },
+            "type": "connector.gear"
+        },
+        {
+            "id": 8,
+            "name": "Gear 8",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    0,
+                    0
+                ],
+                "bodyA": 2,
+                "bodyB": 3,
+                "collideConnected": false,
+                "color": "#b7950bff",
+                "direction": "Same (belt or chain)",
+                "ratio": 0.5
+            },
+            "type": "connector.gear"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            1.4,
+            3
+        ],
+        "pixelsPerMetre": 90
+    },
+    "world": {
+        "airDensity": 1.225,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravity": [
+            0,
+            -9.81
+        ],
+        "jointDamping": 2,
+        "jointHertz": 60,
+        "keyframeInterval": 240,
+        "physicsHz": 120,
+        "restitutionThreshold": 1,
+        "sleep": true,
+        "substeps": 4
+    }
+}

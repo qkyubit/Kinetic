@@ -2,6 +2,11 @@
 
 #include <algorithm>
 #include <atomic>
+#include <mutex>
+
+#include "AllocCounter.h"
+#include "Friction.h"
+#include "TaskPool.h"
 
 namespace kn {
 
@@ -32,6 +37,9 @@ WorldSettings WorldSettings::fromDef(const ItemDef& d)
     s.jointHertz = numberProp(d, "jointHertz", 60);
     s.jointDamping = numberProp(d, "jointDamping", 2);
     s.coulombSoftening = numberProp(d, "coulombSoftening", 0.05);
+    s.restitutionThreshold = numberProp(d, "restitutionThreshold", 1.0);
+    s.contactHertz = numberProp(d, "contactHertz", 30.0);
+    s.contactDamping = numberProp(d, "contactDamping", 10.0);
     s.keyframeInterval = int(numberProp(d, "keyframeInterval", 240));
     s.hz = std::clamp(s.hz, 10, 2000);
     s.substeps = std::clamp(s.substeps, 1, 64);
@@ -42,17 +50,29 @@ WorldSettings WorldSettings::fromDef(const ItemDef& d)
 World::World(const ItemDef& worldDef)
 {
     settings_ = WorldSettings::fromDef(worldDef);
+    alloc::installBox2dCounter();
     b2WorldDef wd = b2DefaultWorldDef();
     wd.gravity = {float(settings_.gravity.x), float(settings_.gravity.y)};
     wd.enableSleep = settings_.sleep;
     wd.enableContinuous = settings_.continuous;
-    wd.workerCount = 1;
+    wd.restitutionThreshold = float(settings_.restitutionThreshold);
+    wd.frictionCallback = &friction::mix;
+    wd.contactHertz = float(settings_.contactHertz);
+    wd.contactDampingRatio = float(settings_.contactDamping);
+    // Box2D v3 is deterministic for any worker count, so the pool size is a
+    // machine setting, not part of the scene.
+    TaskPool* pool = TaskPool::instance();
+    wd.workerCount = pool->workerCount();
+    wd.enqueueTask = &TaskPool::enqueue;
+    wd.finishTask = &TaskPool::finish;
+    wd.userTaskContext = pool;
     id_ = b2CreateWorld(&wd);
     structureVersion_ = nextStructureVersion();
     b2BodyDef gd = b2DefaultBodyDef();
     gd.type = b2_staticBody;
     ground_ = b2CreateBody(id_, &gd);
-    contactScratch_.resize(64);
+    contactScratch_.resize(size_t(pool->workerCount()));
+    for (auto& v : contactScratch_) v.resize(64);
 }
 
 World::~World()
@@ -66,6 +86,8 @@ void World::applySettings()
     b2World_SetGravity(id_, {float(settings_.gravity.x), float(settings_.gravity.y)});
     b2World_EnableSleeping(id_, settings_.sleep);
     b2World_EnableContinuous(id_, settings_.continuous);
+    b2World_SetRestitutionThreshold(id_, float(settings_.restitutionThreshold));
+    b2World_SetContactTuning(id_, float(settings_.contactHertz), float(settings_.contactDamping), 3.0f);
 }
 
 void World::setWorldDef(const ItemDef& worldDef)
@@ -73,6 +95,7 @@ void World::setWorldDef(const ItemDef& worldDef)
     settings_ = WorldSettings::fromDef(worldDef);
     applySettings();
     baselineValid_ = false;
+    statesDirty_ = true;
 }
 
 const ItemDef* World::def(ItemId id) const
@@ -169,6 +192,7 @@ void World::build(const std::vector<ItemDefPtr>& defs, const RestoreState* resto
     }
     structureVersion_ = nextStructureVersion();
     baselineValid_ = false;
+    statesDirty_ = true;
 }
 
 void World::addItem(ItemDefPtr def, const RestoreState* restore)
@@ -183,6 +207,7 @@ void World::addItem(ItemDefPtr def, const RestoreState* restore)
     createDormant(restore);
     structureVersion_ = nextStructureVersion();
     baselineValid_ = false;
+    statesDirty_ = true;
 }
 
 void World::removeItem(ItemId id)
@@ -196,6 +221,7 @@ void World::removeItem(ItemId id)
     reindex();
     structureVersion_ = nextStructureVersion();
     baselineValid_ = false;
+    statesDirty_ = true;
 }
 
 void World::updateItem(ItemDefPtr def, uint64_t changed)
@@ -208,6 +234,7 @@ void World::updateItem(ItemDefPtr def, uint64_t changed)
     Entry& e = items_[it->second];
     e.def = def;
     baselineValid_ = false;
+    statesDirty_ = true;
     if (e.rt && e.rt->applyEdit(*def, changed, *this)) return;
 
     // Rebuild the item and everything attached to it, preserving motion.
@@ -407,11 +434,21 @@ void World::setConstant(const QString& name, double value)
 
 void World::step()
 {
+    // The worker pool is shared by every world in the process; one step at a time.
+    TaskPool* pool = TaskPool::instance();
+    const std::lock_guard<std::mutex> lock(pool->stepMutex());
+    pool->reset();
+    const alloc::Scope allocs;
+    const uint64_t workerAllocs0 = pool->workerAllocations();
+    const uint64_t box2dAllocs0 = alloc::box2dCount();
     const float h = dt();
     const b2Vec2 g{float(settings_.gravity.x), float(settings_.gravity.y)};
+    const bool edited = statesDirty_;
+    statesDirty_ = false;
 
     for (BodyRec& b : bodies_) {
         if (!b.alive) continue;
+        if (edited) refreshBodyState(b); // an edit may have teleported or re-launched bodies
         b.prevV = b.v;
         b.prevW = b.w;
         // Sleeping bodies keep their last force breakdown (they are in equilibrium).
@@ -448,70 +485,93 @@ void World::step()
 
     time_ += double(h);
     ++step_;
+    stepAllocs_ = allocs.count() + (pool->workerAllocations() - workerAllocs0);
+    stepBox2dAllocs_ = alloc::box2dCount() - box2dAllocs0;
+}
+
+int World::indexOfBody(b2BodyId id) const
+{
+    const intptr_t i = reinterpret_cast<intptr_t>(b2Body_GetUserData(id)) - 1;
+    return (i >= 0 && i < intptr_t(bodies_.size())) ? int(i) : -1;
+}
+
+b2Vec2 World::pointVelocity(int index, b2Vec2 p) const
+{
+    if (index < 0) return {0, 0}; // the static ground body
+    const BodyRec& b = bodies_[size_t(index)];
+    return b2Add(b.v, b2CrossSV(b.w, b2Sub(p, b.com)));
+}
+
+// Contact force breakdown for one body. Reads Box2D and writes only this body's
+// record, so bodies are processed in parallel with identical results.
+void World::contactsForBody(int bi, std::vector<b2ContactData>& scratch)
+{
+    BodyRec& b = bodies_[size_t(bi)];
+    b.slidingNext = b.sliding;
+    if (!b.alive || b.type != b2_dynamicBody || !b.refreshForces) return;
+    if (!b.awake) {
+        // Fell asleep during this step: Box2D no longer reports its contact
+        // impulses, so keep the equilibrium breakdown of the last awake step.
+        std::copy(b.lastForces, b.lastForces + b.lastForceCount, b.forces);
+        b.forceCount = b.lastForceCount;
+        return;
+    }
+    const float invH = float(settings_.hz * settings_.substeps); // 1 / sub-step
+    const int cap = b2Body_GetContactCapacity(b.id);
+    if (cap > int(scratch.size())) scratch.resize(size_t(cap) * 2); // rare growth
+    const int n = b2Body_GetContactData(b.id, scratch.data(), int(scratch.size()));
+    bool sliding = false;
+    for (int ci = 0; ci < n; ++ci) {
+        const b2ContactData& cd = scratch[size_t(ci)];
+        const b2Manifold& m = cd.manifold;
+        if (m.pointCount == 0) continue;
+        const int ia = indexOfBody(b2Shape_GetBody(cd.shapeIdA));
+        const int ib = indexOfBody(b2Shape_GetBody(cd.shapeIdB));
+        const float sign = ia == bi ? -1.0f : 1.0f; // manifold impulses act on B
+        const b2Vec2 n2 = m.normal;
+        const b2Vec2 t2 = b2RightPerp(n2);
+        // Conveyor surfaces: sliding is judged relative to the moving surface.
+        const float tangentSpeed = (ia >= 0 ? bodies_[size_t(ia)].tangentSpeed : 0.0f) +
+                                   (ib >= 0 ? bodies_[size_t(ib)].tangentSpeed : 0.0f);
+        b2Vec2 fn{0, 0}, ft{0, 0};
+        float tn = 0, tt = 0;
+        for (int pi = 0; pi < m.pointCount; ++pi) {
+            const b2ManifoldPoint& mp = m.points[pi];
+            const b2Vec2 Pn = b2MulSV(sign * mp.normalImpulse * invH, n2);
+            const b2Vec2 Pt = b2MulSV(sign * mp.tangentImpulse * invH, t2);
+            const b2Vec2 r = b2Sub(mp.point, b.com);
+            fn = b2Add(fn, Pn);
+            ft = b2Add(ft, Pt);
+            tn += b2Cross(r, Pn);
+            tt += b2Cross(r, Pt);
+            if (mp.normalImpulse > 0.0f) {
+                const b2Vec2 dv = b2Sub(pointVelocity(ib, mp.point), pointVelocity(ia, mp.point));
+                if (std::abs(b2Dot(dv, t2) - tangentSpeed) > 0.01f) sliding = true;
+            }
+        }
+        addEntry(b, ForceSource::Normal, fn.x, fn.y, tn);
+        addEntry(b, ForceSource::Friction, ft.x, ft.y, tt);
+    }
+    if (n > 0 || b.sliding) b.slidingNext = sliding;
+    std::copy(b.forces, b.forces + b.forceCount, b.lastForces);
+    b.lastForceCount = b.forceCount;
 }
 
 void World::computeContactForces()
 {
-    const float invH = float(settings_.hz * settings_.substeps); // 1 / substep
-    for (int bi = 0; bi < int(bodies_.size()); ++bi) {
-        BodyRec& b = bodies_[size_t(bi)];
-        if (!b.alive || b.type != b2_dynamicBody || !b.refreshForces) continue;
-        if (!b.awake) {
-            // Fell asleep during this step: Box2D no longer reports its contact
-            // impulses, so keep the equilibrium breakdown of the last awake step.
-            std::copy(b.lastForces, b.lastForces + b.lastForceCount, b.forces);
-            b.forceCount = b.lastForceCount;
-            continue;
+    TaskPool* pool = TaskPool::instance();
+    auto task = [](int start, int end, uint32_t worker, void* ctx) {
+        auto* w = static_cast<World*>(ctx);
+        for (int i = start; i < end; ++i) w->contactsForBody(i, w->contactScratch_[worker]);
+    };
+    const int count = int(bodies_.size());
+    if (void* t = TaskPool::enqueue(task, count, 256, this, pool)) TaskPool::finish(t, pool);
+    // Box2D state changes stay on this thread.
+    for (BodyRec& b : bodies_) {
+        if (b.alive && b.slidingNext != b.sliding) {
+            b.sliding = b.slidingNext;
+            updateFrictionState(b);
         }
-        const int cap = b2Body_GetContactCapacity(b.id);
-        if (cap > int(contactScratch_.size())) contactScratch_.resize(size_t(cap) * 2); // rare growth
-        const int n = b2Body_GetContactData(b.id, contactScratch_.data(), int(contactScratch_.size()));
-        bool sliding = false;
-        for (int ci = 0; ci < n; ++ci) {
-            const b2ContactData& cd = contactScratch_[size_t(ci)];
-            const b2Manifold& m = cd.manifold;
-            if (m.pointCount == 0) continue;
-            const b2BodyId bodyA = b2Shape_GetBody(cd.shapeIdA);
-            const b2BodyId bodyB = b2Shape_GetBody(cd.shapeIdB);
-            const bool isA = B2_ID_EQUALS(bodyA, b.id);
-            const float sign = isA ? -1.0f : 1.0f;
-            const b2Vec2 n2 = m.normal;
-            const b2Vec2 t2 = b2RightPerp(n2);
-            b2Vec2 fn{0, 0}, ft{0, 0};
-            float tn = 0, tt = 0;
-            // Conveyor surfaces: sliding is judged relative to the moving surface.
-            float tangentSpeed = 0.0f;
-            for (b2BodyId bid : {bodyA, bodyB}) {
-                const intptr_t oi = reinterpret_cast<intptr_t>(b2Body_GetUserData(bid)) - 1;
-                if (oi >= 0 && oi < intptr_t(bodies_.size())) tangentSpeed += bodies_[size_t(oi)].tangentSpeed;
-            }
-            for (int pi = 0; pi < m.pointCount; ++pi) {
-                const b2ManifoldPoint& mp = m.points[pi];
-                const b2Vec2 Pn = b2MulSV(sign * mp.normalImpulse * invH, n2);
-                const b2Vec2 Pt = b2MulSV(sign * mp.tangentImpulse * invH, t2);
-                const b2Vec2 r = b2Sub(mp.point, b.com);
-                fn = b2Add(fn, Pn);
-                ft = b2Add(ft, Pt);
-                tn += b2Cross(r, Pn);
-                tt += b2Cross(r, Pt);
-                if (mp.normalImpulse > 0.0f) {
-                    const b2Vec2 va = b2Body_GetWorldPointVelocity(bodyA, mp.point);
-                    const b2Vec2 vb = b2Body_GetWorldPointVelocity(bodyB, mp.point);
-                    const float vt = b2Dot(b2Sub(vb, va), t2) - tangentSpeed;
-                    if (std::abs(vt) > 0.01f) sliding = true;
-                }
-            }
-            addEntry(b, ForceSource::Normal, fn.x, fn.y, tn);
-            addEntry(b, ForceSource::Friction, ft.x, ft.y, tt);
-        }
-        if (n > 0 || b.sliding) {
-            if (sliding != b.sliding) {
-                b.sliding = sliding;
-                updateFrictionState(b);
-            }
-        }
-        std::copy(b.forces, b.forces + b.forceCount, b.lastForces);
-        b.lastForceCount = b.forceCount;
     }
 }
 
@@ -552,6 +612,8 @@ void World::writeSnapshot(Snapshot& s) const
     s.time = time_;
     s.dt = 1.0 / settings_.hz;
     s.structureVersion = structureVersion_;
+    s.stepAllocs = stepAllocs_;
+    s.stepBox2dAllocs = stepBox2dAllocs_;
     size_t n = 0;
     for (const BodyRec& b : bodies_)
         if (b.alive) ++n;

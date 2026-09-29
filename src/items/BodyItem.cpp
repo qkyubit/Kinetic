@@ -1,5 +1,6 @@
 #include "BodyItem.h"
 
+#include "core/Friction.h"
 #include "core/Geometry.h"
 #include "core/RenderBatch.h"
 #include "core/World.h"
@@ -78,9 +79,14 @@ public:
             } else if (i == ix.muStatic || i == ix.muKinetic || i == ix.material) {
                 rec.muStatic = float(def.d(ix.muStatic));
                 rec.muKinetic = float(def.d(ix.muKinetic));
-                const float mu = rec.sliding ? rec.muKinetic : rec.muStatic;
-                for (b2ShapeId s : rec.shapeIds) b2Shape_SetFriction(s, mu);
-                for (b2ShapeId s : rec.shapeIds) b2Shape_SetRestitution(s, float(def.d(ix.restitution)));
+                const int materialId = friction::materialId(rec.muStatic, rec.muKinetic);
+                for (b2ShapeId s : rec.shapeIds) {
+                    b2SurfaceMaterial m = b2Shape_GetSurfaceMaterial(s);
+                    m.friction = rec.sliding ? rec.muKinetic : rec.muStatic;
+                    m.restitution = float(def.d(ix.restitution));
+                    m.userMaterialId = materialId;
+                    b2Shape_SetSurfaceMaterial(s, m);
+                }
                 if (i == ix.material) {
                     for (b2ShapeId s : rec.shapeIds) b2Shape_SetDensity(s, float(def.d(ix.density)), false);
                     b2Body_ApplyMassFromShapes(bid);
@@ -336,6 +342,7 @@ std::unique_ptr<ItemRuntime> BodyItemType::createRuntime(const ItemDef& def, Wor
     sd.density = float(def.d(idx_.density));
     sd.material.friction = float(def.d(idx_.muStatic));
     sd.material.restitution = float(def.d(idx_.restitution));
+    sd.material.userMaterialId = friction::materialId(float(def.d(idx_.muStatic)), float(def.d(idx_.muKinetic)));
     sd.filter.categoryBits = uint64_t(def.i(idx_.layers));
     sd.filter.maskBits = uint64_t(def.i(idx_.mask));
     sd.enableContactEvents = false;

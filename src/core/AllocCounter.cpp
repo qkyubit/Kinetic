@@ -1,6 +1,10 @@
 #include "AllocCounter.h"
 
+#include <box2d/base.h>
+
+#include <atomic>
 #include <cstddef>
+#include <cstdlib>
 
 #if defined(__GLIBC__) && defined(KINETIC_ALLOC_COUNTER)
 
@@ -67,3 +71,30 @@ bool available() { return false; }
 } // namespace kn::alloc
 
 #endif
+
+namespace {
+std::atomic<uint64_t> gBox2dCount{0};
+
+void* box2dAlloc(unsigned int size, int alignment)
+{
+    gBox2dCount.fetch_add(1, std::memory_order_relaxed);
+    const size_t a = size_t(alignment > 0 ? alignment : 16);
+    const size_t rounded = (size_t(size) + a - 1) / a * a;
+    return std::aligned_alloc(a, rounded);
+}
+
+void box2dFree(void* p) { std::free(p); }
+} // namespace
+
+namespace kn::alloc {
+uint64_t box2dCount() { return gBox2dCount.load(std::memory_order_relaxed); }
+
+void installBox2dCounter()
+{
+    static const bool installed = [] {
+        b2SetAllocator(&box2dAlloc, &box2dFree);
+        return true;
+    }();
+    (void)installed;
+}
+} // namespace kn::alloc

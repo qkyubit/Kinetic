@@ -200,6 +200,10 @@ void MainWindow::buildActions()
     connect(gridAct_, &QAction::toggled, viewport_, &Viewport::setGridVisible);
     zoomFitAct_ = act(tr("&Zoom to Fit"), QStringLiteral("zoom-fit-best"), fb, QKeySequence(Qt::Key_F));
     connect(zoomFitAct_, &QAction::triggered, viewport_, &Viewport::zoomToFit);
+    statsAct_ = act(tr("&Performance Statistics"), QStringLiteral("office-chart-line"), fb, QKeySequence(Qt::Key_F12));
+    statsAct_->setCheckable(true);
+    statsAct_->setToolTip(tr("Frame rate, render and physics time, and heap allocations per frame/step"));
+    connect(statsAct_, &QAction::toggled, viewport_, &Viewport::setStatsVisible);
     resetLayoutAct_ = act(tr("&Reset Layout"), QStringLiteral("view-restore"), fb);
     connect(resetLayoutAct_, &QAction::triggered, this, [this] { restoreState(defaultState_); });
 
@@ -280,7 +284,7 @@ void MainWindow::buildMenus()
     viewMenu_ = menuBar()->addMenu(tr("&View"));
     for (QDockWidget* d : findChildren<QDockWidget*>()) viewMenu_->addAction(d->toggleViewAction());
     viewMenu_->addSeparator();
-    viewMenu_->addActions({gridAct_, snapAct_, zoomFitAct_});
+    viewMenu_->addActions({gridAct_, snapAct_, zoomFitAct_, statsAct_});
     viewMenu_->addSeparator();
     viewMenu_->addAction(resetLayoutAct_);
 

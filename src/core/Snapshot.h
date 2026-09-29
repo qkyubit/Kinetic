@@ -67,6 +67,8 @@ struct Snapshot {
     bool recording = false;
     double speed = 1.0;
     float stepMs = 0;          // average wall time per physics step
+    uint64_t stepAllocs = 0;   // heap allocations in the last step (all threads)
+    uint64_t stepBox2dAllocs = 0; // ...of which made by Box2D's own allocator
     std::vector<BodySnap> bodies;
     std::vector<ItemSnap> items;
     EnergySnap energy;
