@@ -73,6 +73,7 @@ World::World(const ItemDef& worldDef)
     ground_ = b2CreateBody(id_, &gd);
     contactScratch_.resize(size_t(pool->workerCount()));
     for (auto& v : contactScratch_) v.resize(64);
+    events_.reserve(4096);
 }
 
 World::~World()
@@ -479,6 +480,7 @@ void World::step()
     }
 
     computeContactForces();
+    dispatchSensorEvents();
 
     for (Entry& e : items_)
         if (e.rt) e.rt->postStep(*this);
@@ -575,6 +577,24 @@ void World::computeContactForces()
     }
 }
 
+void World::dispatchSensorEvents()
+{
+    const b2SensorEvents ev = b2World_GetSensorEvents(id_);
+    auto route = [this](b2ShapeId sensor, b2ShapeId visitor, bool begin) {
+        if (!b2Shape_IsValid(sensor)) return;
+        auto* rt = static_cast<ItemRuntime*>(b2Shape_GetUserData(sensor));
+        if (!rt) return;
+        ItemId body = 0;
+        if (b2Shape_IsValid(visitor)) {
+            const int bi = indexOfBody(b2Shape_GetBody(visitor));
+            if (bi >= 0) body = bodies_[size_t(bi)].item;
+        }
+        rt->sensorEvent(*this, body, begin);
+    };
+    for (int i = 0; i < ev.beginCount; ++i) route(ev.beginEvents[i].sensorShapeId, ev.beginEvents[i].visitorShapeId, true);
+    for (int i = 0; i < ev.endCount; ++i) route(ev.endEvents[i].sensorShapeId, ev.endEvents[i].visitorShapeId, false);
+}
+
 void World::updateFrictionState(BodyRec& b)
 {
     const float mu = b.sliding ? b.muKinetic : b.muStatic;
@@ -651,12 +671,15 @@ void World::writeSnapshot(Snapshot& s) const
         o.fy = fy;
         o.torque = t;
     }
+    // Every non-body item with a runtime appears (even without values), so the
+    // UI knows which items exist in this frame (replays, dormant connectors).
     s.items.clear();
     for (const Entry& e : items_) {
-        if (!e.rt) continue;
+        if (!e.rt || e.rt->bodyIndex() >= 0) continue;
         ItemSnap is;
         is.id = e.def->id;
-        if (e.rt->snapshot(*this, is)) s.items.push_back(is);
+        e.rt->snapshot(*this, is);
+        s.items.push_back(is);
     }
     s.energy = energy();
 }

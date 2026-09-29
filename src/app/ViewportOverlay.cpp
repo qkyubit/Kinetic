@@ -39,8 +39,25 @@ void ViewportOverlay::paintEvent(QPaintEvent*)
     for (const TextLabel& l : vp_->batch().labels) {
         buf = l.text;
         if (l.hasValue) {
-            buf += QString::number(l.value, 'f', l.decimals);
-            buf += l.unit;
+            double v = l.value;
+            QString prefix;
+            if (l.si) {
+                const double a = std::abs(v);
+                if (a >= 1e6) {
+                    v /= 1e6;
+                    prefix = QStringLiteral(" M");
+                } else if (a >= 1e3) {
+                    v /= 1e3;
+                    prefix = QStringLiteral(" k");
+                }
+            }
+            buf += QString::number(v, 'f', l.decimals);
+            if (!prefix.isEmpty()) {
+                buf += prefix;
+                buf += l.unit.trimmed();
+            } else {
+                buf += l.unit;
+            }
         }
         const QPointF s = vp_->toScreen(l.pos) + QPointF(l.dx, l.dy);
         const double w = fm.horizontalAdvance(buf);

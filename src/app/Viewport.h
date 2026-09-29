@@ -17,6 +17,7 @@
 namespace kn {
 
 class ViewportOverlay;
+class Analysis;
 
 class Viewport : public QRhiWidget, public SceneView {
     Q_OBJECT
@@ -59,6 +60,7 @@ public:
     const ThemeColors& theme() const { return theme_; }
     uint64_t lastRenderAllocations() const { return lastAllocs_; }
     const SimController* simulation() const { return sim_; }
+    Analysis* analysis() const { return analysis_.get(); }
     // Rendering statistics (shown by View > Performance Statistics).
     double fps() const { return fps_; }
     double renderMs() const { return renderMs_; }
@@ -137,6 +139,7 @@ private:
 
     Document* doc_;
     SimController* sim_;
+    std::unique_ptr<Analysis> analysis_;
     ViewportOverlay* overlay_ = nullptr;
 
     Vec2 center_{0.0, 4.0};
@@ -169,15 +172,6 @@ private:
     Vec2 dropWorld_;
     Measure measure_;
 
-    // Snapshot lookup (rebuilt when the structure version changes).
-    void ensureSnapIndex() const;
-    mutable uint64_t indexedVersion_ = ~0ull;
-    mutable uint64_t indexedGeneration_ = ~0ull;
-    mutable const Snapshot* indexedSnap_ = nullptr;
-    // Item id -> index into the snapshot arrays (-1: absent). Ids are small and
-    // dense, so flat arrays re-index without allocating.
-    mutable std::vector<int> bodyIndex_;
-    mutable std::vector<int> itemIndex_;
     std::unordered_set<ItemId> selected_;
     ItemDef ghost_;
 

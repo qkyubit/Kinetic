@@ -116,6 +116,9 @@ public:
     const Recorder& recorder() const { return rec_; }
     ReplayData exportReplay() const;
     void writeSnapshot(Snapshot& s) const;
+    // Trigger events produced by advance() since the last clearEvents().
+    const std::vector<TriggerEvent>& events() const { return events_; }
+    void clearEvents() { events_.clear(); }
 
 private:
     void ensureSeated();
@@ -130,6 +133,12 @@ private:
     uint64_t generation_ = 0;
     uint64_t seatedAt_ = UINT64_MAX;
     uint64_t appliedAt_ = UINT64_MAX;
+    bool scrubbing_ = false;
+    std::vector<TriggerEvent> events_ = [] {
+        std::vector<TriggerEvent> v;
+        v.reserve(8192);
+        return v;
+    }();
 };
 
 class Simulation {
@@ -148,6 +157,8 @@ public:
     // outstanding until the UI calls update().
     void setNotify(std::function<void()> fn) { notify_ = std::move(fn); }
     ReplayData exportReplay();
+    // Trigger events, delivered in order (UI thread).
+    bool popEvent(TriggerEvent& e) { return events_.pop(e); }
 
 private:
     void run();
@@ -155,6 +166,7 @@ private:
     void publish();
 
     SpscQueue<SimCommand, 1024> queue_;
+    SpscQueue<TriggerEvent, 8192> events_;
     TripleBuffer<Snapshot> snaps_;
     std::counting_semaphore<1 << 20> wake_{0};
     std::atomic<bool> notifyPending_{false};

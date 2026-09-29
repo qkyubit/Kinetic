@@ -145,6 +145,15 @@ public:
     // Records a force that Box2D applies itself (contacts, joints, gravity).
     void record(int index, ForceSource source, b2Vec2 force, float torque);
 
+    // Events (trigger enter/exit) produced during steps, drained by the owner.
+    void emitEvent(const TriggerEvent& e)
+    {
+        if (events_.size() < events_.capacity()) events_.push_back(e); // never reallocates in a step
+        else ++droppedEvents_;
+    }
+    const std::vector<TriggerEvent>& events() const { return events_; }
+    void clearEvents() { events_.clear(); }
+
     // Named constants (Constant items) for equation-driven items.
     void setConstant(const QString& name, double value);
     const std::vector<std::pair<QString, double>>& constants() const { return constants_; }
@@ -163,6 +172,7 @@ private:
     std::vector<size_t> dependentsOf(ItemId id) const;
     void reindex();
     void computeContactForces();
+    void dispatchSensorEvents();
     void contactsForBody(int index, std::vector<b2ContactData>& scratch);
     int indexOfBody(b2BodyId id) const;
     b2Vec2 pointVelocity(int index, b2Vec2 p) const;
@@ -182,6 +192,8 @@ private:
     std::vector<std::vector<b2ContactData>> contactScratch_; // one per worker
     std::vector<std::pair<QString, double>> constants_;
     uint64_t constantsVersion_ = 0;
+    std::vector<TriggerEvent> events_;
+    uint64_t droppedEvents_ = 0;
     uint64_t step_ = 0;
     double time_ = 0.0;
     uint64_t structureVersion_ = 1;

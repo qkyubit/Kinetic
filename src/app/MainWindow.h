@@ -16,6 +16,7 @@ class ToolboxPanel;
 class ExplorerPanel;
 class PropertiesPanel;
 class PlaybackBar;
+class TriggerLogPanel;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -53,6 +54,9 @@ private:
     void updateTitle();
     void showContextMenu(QPoint global);
     void activateToolboxItem(const ItemType* t);
+    void newGraph();
+    void saveReplay();
+    void openReplay();
 
     Document* doc_;
     SimController* sim_;
@@ -61,6 +65,8 @@ private:
     ExplorerPanel* explorer_;
     PropertiesPanel* properties_;
     PlaybackBar* playback_;
+    TriggerLogPanel* triggerLog_;
+    int graphCount_ = 0;
     QByteArray defaultState_;
 
     QLabel* cursorLabel_;
@@ -72,6 +78,7 @@ private:
     QAction *groupAct_, *ungroupAct_, *freezeAct_;
     QAction *selectToolAct_, *moveAct_, *rotateAct_, *scaleAct_, *rulerAct_, *protractorAct_, *drawAct_;
     QAction *snapAct_, *gridAct_, *zoomFitAct_, *resetLayoutAct_, *statsAct_;
+    QAction *probeAct_, *graphAct_, *saveReplayAct_, *openReplayAct_;
     QMenu* viewMenu_;
     QMenu* examplesMenu_;
 };

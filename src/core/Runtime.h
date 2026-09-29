@@ -115,6 +115,8 @@ public:
     virtual void destroy(World&) {}
     // Body runtimes return their index in World's body table.
     virtual int bodyIndex() const { return -1; }
+    // Sensor shapes whose user data points at this runtime get overlap events.
+    virtual void sensorEvent(World&, ItemId /*body*/, bool /*begin*/) {}
 
 private:
     ItemId id_;

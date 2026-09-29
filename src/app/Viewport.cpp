@@ -1,5 +1,6 @@
 #include "Viewport.h"
 
+#include "Analysis.h"
 #include "ViewportOverlay.h"
 
 #include "core/AllocCounter.h"
@@ -45,7 +46,12 @@ Viewport::Viewport(Document* doc, SimController* sim, QWidget* parent) : QRhiWid
     setMouseTracking(true);
     setAcceptDrops(true);
     setMinimumSize(200, 150);
+    analysis_ = std::make_unique<Analysis>(doc_, sim_);
+    connect(analysis_.get(), &Analysis::changed, this, [this] { update(); });
     overlay_ = new ViewportOverlay(this);
+    overlay_->addPainter([this](QPainter& p) {
+        analysis_->paintOverlay(p, theme_, lastScreen_, tool_ == Tool::Probe ? hover_ : 0, size());
+    });
     updateTheme();
 
     auto refresh = [this] { update(); };
@@ -73,45 +79,9 @@ Viewport::~Viewport() = default;
 
 const ItemDef* Viewport::def(ItemId id) const { return doc_->item(id); }
 
-void Viewport::ensureSnapIndex() const
-{
-    const Snapshot& s = sim_->snapshot();
-    // Buffers rotate, but with an unchanged structure the ordering is the same.
-    if (s.structureVersion == indexedVersion_ && s.generation == indexedGeneration_) return;
-    indexedSnap_ = &s;
-    indexedVersion_ = s.structureVersion;
-    indexedGeneration_ = s.generation;
-    auto rebuild = [](std::vector<int>& index, const auto& vec) {
-        std::fill(index.begin(), index.end(), -1);
-        for (size_t i = 0; i < vec.size(); ++i) {
-            const ItemId id = vec[i].id;
-            if (id >= index.size()) index.resize(size_t(id) * 2 + 64, -1); // grows only with the scene
-            index[id] = int(i);
-        }
-    };
-    rebuild(bodyIndex_, s.bodies);
-    rebuild(itemIndex_, s.items);
-}
+const BodySnap* Viewport::bodySnap(ItemId id) const { return sim_->bodySnap(id); }
 
-const BodySnap* Viewport::bodySnap(ItemId id) const
-{
-    if (!sim_->live()) return nullptr;
-    ensureSnapIndex();
-    if (id >= bodyIndex_.size() || bodyIndex_[id] < 0) return nullptr;
-    const auto& b = sim_->snapshot().bodies;
-    const size_t i = size_t(bodyIndex_[id]);
-    return i < b.size() && b[i].id == id ? &b[i] : nullptr;
-}
-
-const ItemSnap* Viewport::itemSnap(ItemId id) const
-{
-    if (!sim_->live()) return nullptr;
-    ensureSnapIndex();
-    if (id >= itemIndex_.size() || itemIndex_[id] < 0) return nullptr;
-    const auto& v = sim_->snapshot().items;
-    const size_t i = size_t(itemIndex_[id]);
-    return i < v.size() && v[i].id == id ? &v[i] : nullptr;
-}
+const ItemSnap* Viewport::itemSnap(ItemId id) const { return sim_->itemSnap(id); }
 
 bool Viewport::pose(ItemId id, Pose& out) const
 {
@@ -905,6 +875,10 @@ void Viewport::drawItems()
             bs = bodySnap(d.id);
             if (!bs) continue; // not part of the simulation at this frame
         }
+        // Simulated items that do not exist in this frame (added later in a
+        // replay, or detached from a deleted body) are not drawn.
+        if (live && k != ItemKind::Body && k != ItemKind::Optics && k != ItemKind::Constant && !itemSnap(d.id))
+            continue;
         DrawContext ctx{batch_, theme_, *this};
         ctx.pxPerM = ppm_;
         ctx.selected = selected_.count(d.id) > 0 || (hover_ == d.id && tool_ == Tool::Select);
@@ -1038,6 +1012,7 @@ void Viewport::buildFrame()
     batch_.pxPerM = ppm_;
     if (grid_) drawGrid();
     drawItems();
+    analysis_->draw(batch_, theme_, ppm_, selected_);
     drawSelectionAndGizmo();
     drawToolPreview();
 }

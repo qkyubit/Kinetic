@@ -144,6 +144,15 @@ public:
     // can derive lengths etc. from the current poses.
     virtual void initConnection(ItemDef&, const SceneView&) const {}
 
+    // Live values an item publishes in ItemSnap::v (for graphs and probes).
+    struct Channel {
+        int index;      // into ItemSnap::v
+        QString name;
+        QString unit;
+        double scale = 1.0; // display value = v * scale
+    };
+    virtual QList<Channel> channels() const { return {}; }
+
     // Items referenced by this item (connectors, attachments). Used for
     // dependency ordering, copy/paste remapping and deletion.
     std::vector<ItemId> references(const ItemDef& def) const;

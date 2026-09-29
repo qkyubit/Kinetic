@@ -178,6 +178,12 @@ void SimCore::advance()
     if (rec_.enabled && s < rec_.head) applyLogged(s);
     world_->step();
     if (rec_.enabled && world_->stepIndex() > rec_.head) rec_.head = world_->stepIndex();
+    // Collect events before a keyframe rebuild replaces the world. Frames that a
+    // scrub re-simulates were reported the first time round.
+    if (!scrubbing_)
+        for (const TriggerEvent& e : world_->events())
+            if (events_.size() < events_.capacity()) events_.push_back(e);
+    world_->clearEvents();
 }
 
 void SimCore::scrubTo(uint64_t target)
@@ -189,7 +195,9 @@ void SimCore::scrubTo(uint64_t target)
     rebuildFrom(*k);
     seatedAt_ = k->step;
     appliedAt_ = UINT64_MAX;
+    scrubbing_ = true;
     while (world_->stepIndex() < target) advance();
+    scrubbing_ = false;
 }
 
 ReplayData SimCore::exportReplay() const
@@ -258,6 +266,8 @@ ReplayData Simulation::exportReplay()
 
 void Simulation::publish()
 {
+    for (TriggerEvent e : core_.events()) events_.push(std::move(e)); // drops only if the UI stalls
+    core_.clearEvents();
     Snapshot& s = snaps_.back();
     core_.writeSnapshot(s);
     s.running = running_ && core_.active();

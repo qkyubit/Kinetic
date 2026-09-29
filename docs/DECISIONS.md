@@ -167,3 +167,40 @@ current step is discarded, like an editor's undo history.
 updated to match, instead of producing overlapping convex pieces.
 
 **Scene files use the `.kinetic` extension** (indented JSON); `.json` is accepted.
+
+## Analysis (M3)
+
+**Graphs are UI-side and not persisted.** A graph samples the published
+snapshot once per UI frame, so it costs the physics thread nothing. Series live
+in the dock, not in the scene file; graph docks are deleted on close and are
+left out of the saved window layout. Each graph keeps at most 200,000 rows and
+drops the oldest half when full. Scrubbing back truncates the graph at the new
+time; the future is re-sampled as it is re-simulated.
+
+**Trails are ring buffers of 2,048 points per body**, sampled from snapshots,
+so a trail's resolution depends on the frame rate, not the physics rate.
+
+**Trigger zones are Box2D sensors.** Events are produced on the physics thread
+at the end of the step in which the overlap began or ended and are delivered in
+order through a lossless SPSC queue (8,192 entries; the physics thread never
+blocks, so a UI stalled for more than that many events loses the oldest).
+Keyframe rebuilds re-report existing overlaps; the zone keeps its "inside" set
+in its saved state and ignores repeats. Events are suppressed while scrubbing
+re-simulates from a keyframe. The log replaces its entries from step *s* on
+whenever an event for step ≤ the last logged step arrives, so playing on after a
+scrub back or an edit does not duplicate rows.
+
+**Replay files (`.kreplay`) store inputs, not states:** the initial scene
+(scene schema) plus the edit log (step, add/remove/update/world, item JSON,
+changed-property mask as hex). Step counts and masks are strings because JSON
+numbers are doubles. Playback is bit-identical because scene doubles round-trip
+exactly through Qt's shortest representation and the core is deterministic
+(tested). On load, the document shows every item the replay ever contains in
+its latest logged form, with initial conditions for items present at step 0.
+
+**Replay memory** is dominated by keyframes (one full world state every
+`keyframeInterval` steps, default 240 = 2 s). Measured: 500 awake bodies for
+10 minutes at 120 Hz = 300 keyframes, 7.6 MB.
+
+**Event times** are `World::time()`, a sum of single-precision step lengths
+(matching Box2D), so they differ from `step × dt` by up to ~1e-7 s per second.

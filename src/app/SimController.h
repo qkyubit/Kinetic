@@ -25,6 +25,11 @@ public:
     const Snapshot& snapshot() const { return sim_.snapshot(); }
     // True when the snapshot describes the current simulation (not a stale one).
     bool live() const { return active_ && sim_.snapshot().active && sim_.snapshot().generation == generation_; }
+    // Live state of an item in the current snapshot (nullptr when not live or absent).
+    const BodySnap* bodySnap(ItemId id) const;
+    const ItemSnap* itemSnap(ItemId id) const;
+    // True when a simulated item exists in the current simulation frame.
+    bool present(ItemId id) const { return bodySnap(id) || itemSnap(id); }
 
     void play();
     void pause();
@@ -40,6 +45,7 @@ public:
 signals:
     void snapshotUpdated();
     void stateChanged();
+    void triggerEvents(const std::vector<kn::TriggerEvent>& events);
 
 private:
     void ensureStarted();
@@ -53,6 +59,14 @@ private:
     bool recording_ = true;
     double speed_ = 1.0;
     uint64_t generation_ = 0;
+
+    // Item id -> index into the snapshot arrays (-1: absent). Ids are small and
+    // dense, so flat arrays re-index without allocating.
+    void ensureIndex() const;
+    mutable uint64_t indexedVersion_ = ~0ull;
+    mutable uint64_t indexedGeneration_ = ~0ull;
+    mutable std::vector<int> bodyIndex_;
+    mutable std::vector<int> itemIndex_;
 };
 
 } // namespace kn

@@ -45,6 +45,10 @@ public:
     }
 
     std::unique_ptr<ItemRuntime> createRuntime(const ItemDef& def, World& w, const RestoreState*) const override;
+    QList<Channel> channels() const override
+    {
+        return {{4, QStringLiteral("Motor torque"), unit::Nm}, {5, QStringLiteral("Angle"), unit::deg, kDegPerRad}};
+    }
 
     void draw(const ItemDef& d, const DrawContext& ctx) const override
     {

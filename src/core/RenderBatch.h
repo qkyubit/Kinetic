@@ -44,6 +44,7 @@ struct TextLabel {
     double value = 0.0; // appended when hasValue
     QString unit;       // appended after the value
     bool hasValue = false;
+    bool si = false; // format with k/M prefixes
     int decimals = 2;
     Color color;
     int dx = 0, dy = 0; // pixel offset

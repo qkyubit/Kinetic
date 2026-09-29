@@ -180,7 +180,51 @@ void SimController::loadReplay(const ReplayData& r)
 
 void SimController::onNotify()
 {
-    if (sim_.update()) emit snapshotUpdated();
+    const bool fresh = sim_.update();
+    std::vector<TriggerEvent> events;
+    TriggerEvent e;
+    while (sim_.popEvent(e)) events.push_back(e);
+    if (fresh) emit snapshotUpdated();
+    if (!events.empty()) emit triggerEvents(events);
+}
+
+void SimController::ensureIndex() const
+{
+    const Snapshot& s = sim_.snapshot();
+    // Buffers rotate, but with an unchanged structure the ordering is the same.
+    if (s.structureVersion == indexedVersion_ && s.generation == indexedGeneration_) return;
+    indexedVersion_ = s.structureVersion;
+    indexedGeneration_ = s.generation;
+    auto rebuild = [](std::vector<int>& index, const auto& vec) {
+        std::fill(index.begin(), index.end(), -1);
+        for (size_t i = 0; i < vec.size(); ++i) {
+            const ItemId id = vec[i].id;
+            if (id >= index.size()) index.resize(size_t(id) * 2 + 64, -1); // grows only with the scene
+            index[id] = int(i);
+        }
+    };
+    rebuild(bodyIndex_, s.bodies);
+    rebuild(itemIndex_, s.items);
+}
+
+const BodySnap* SimController::bodySnap(ItemId id) const
+{
+    if (!live()) return nullptr;
+    ensureIndex();
+    if (id >= bodyIndex_.size() || bodyIndex_[id] < 0) return nullptr;
+    const auto& b = sim_.snapshot().bodies;
+    const size_t i = size_t(bodyIndex_[id]);
+    return i < b.size() && b[i].id == id ? &b[i] : nullptr;
+}
+
+const ItemSnap* SimController::itemSnap(ItemId id) const
+{
+    if (!live()) return nullptr;
+    ensureIndex();
+    if (id >= itemIndex_.size() || itemIndex_[id] < 0) return nullptr;
+    const auto& v = sim_.snapshot().items;
+    const size_t i = size_t(itemIndex_[id]);
+    return i < v.size() && v[i].id == id ? &v[i] : nullptr;
 }
 
 } // namespace kn

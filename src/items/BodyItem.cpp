@@ -346,6 +346,7 @@ std::unique_ptr<ItemRuntime> BodyItemType::createRuntime(const ItemDef& def, Wor
     sd.filter.categoryBits = uint64_t(def.i(idx_.layers));
     sd.filter.maskBits = uint64_t(def.i(idx_.mask));
     sd.enableContactEvents = false;
+    sd.enableSensorEvents = true; // trigger zones see this body
     sd.updateBodyMass = false;
     customizeShape(def, sd);
 

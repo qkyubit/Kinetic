@@ -1,11 +1,17 @@
 #include "MainWindow.h"
 
+#include "Analysis.h"
+#include "AnalysisPanel.h"
 #include "ExplorerPanel.h"
+#include "GraphPanel.h"
 #include "Icons.h"
 #include "PlaybackBar.h"
 #include "PropertiesPanel.h"
 #include "ToolboxPanel.h"
+#include "TriggerLogPanel.h"
 #include "Viewport.h"
+
+#include "core/Replay.h"
 
 #include <QActionGroup>
 #include <QApplication>
@@ -78,6 +84,7 @@ MainWindow::MainWindow()
         rulerAct_->setChecked(t == Viewport::Tool::Ruler);
         protractorAct_->setChecked(t == Viewport::Tool::Protractor);
         drawAct_->setChecked(t == Viewport::Tool::Draw);
+        probeAct_->setChecked(t == Viewport::Tool::Probe);
         viewport_->update();
     });
 
@@ -160,7 +167,9 @@ void MainWindow::buildActions()
     drawAct_ = act(tr("&Draw Shape"), QStringLiteral("draw-freehand"), fb, QKeySequence(Qt::Key_D));
     rulerAct_ = act(tr("R&uler"), QStringLiteral("tool-measure"), fb, QKeySequence(Qt::Key_M));
     protractorAct_ = act(tr("&Protractor"), QStringLiteral("draw-halfcircle1"), fb, QKeySequence(Qt::Key_A));
-    for (QAction* a : {selectToolAct_, drawAct_, rulerAct_, protractorAct_}) {
+    probeAct_ = act(tr("Pro&be"), QStringLiteral("crosshairs"), fb, QKeySequence(Qt::Key_P));
+    probeAct_->setToolTip(tr("Hover over a body to read its velocity, acceleration and forces"));
+    for (QAction* a : {selectToolAct_, drawAct_, rulerAct_, protractorAct_, probeAct_}) {
         a->setCheckable(true);
         tools->addAction(a);
     }
@@ -176,6 +185,7 @@ void MainWindow::buildActions()
             [this] { viewport_->beginDraw(ItemRegistry::instance().find(QStringLiteral("body.freehand"))); });
     connect(rulerAct_, &QAction::triggered, this, [this] { viewport_->setTool(Viewport::Tool::Ruler); });
     connect(protractorAct_, &QAction::triggered, this, [this] { viewport_->setTool(Viewport::Tool::Protractor); });
+    connect(probeAct_, &QAction::triggered, this, [this] { viewport_->setTool(Viewport::Tool::Probe); });
     connect(moveAct_, &QAction::triggered, this, [this] {
         viewport_->setTool(Viewport::Tool::Select);
         viewport_->setGizmo(Viewport::Gizmo::Move);
@@ -206,6 +216,14 @@ void MainWindow::buildActions()
     connect(statsAct_, &QAction::toggled, viewport_, &Viewport::setStatsVisible);
     resetLayoutAct_ = act(tr("&Reset Layout"), QStringLiteral("view-restore"), fb);
     connect(resetLayoutAct_, &QAction::triggered, this, [this] { restoreState(defaultState_); });
+    graphAct_ = act(tr("New &Graph"), QStringLiteral("office-chart-line"), fb, QKeySequence(Qt::CTRL | Qt::Key_K));
+    graphAct_->setToolTip(tr("Open a graph of the selected items (or the scene's energy)"));
+    connect(graphAct_, &QAction::triggered, this, &MainWindow::newGraph);
+    saveReplayAct_ = act(tr("Save &Replay…"), QStringLiteral("media-record"), QStringLiteral(":/icons/record.svg"));
+    saveReplayAct_->setToolTip(tr("Save the initial scene and every edit made while running, for exact playback"));
+    connect(saveReplayAct_, &QAction::triggered, this, &MainWindow::saveReplay);
+    openReplayAct_ = act(tr("Open Re&play…"), QStringLiteral("media-playback-start"), QStringLiteral(":/icons/play.svg"));
+    connect(openReplayAct_, &QAction::triggered, this, &MainWindow::openReplay);
 
     // Toolbars.
     auto* main = addToolBar(tr("Main"));
@@ -217,7 +235,7 @@ void MainWindow::buildActions()
     toolBar->setObjectName(QStringLiteral("toolsToolBar"));
     toolBar->addActions({selectToolAct_, moveAct_, rotateAct_, scaleAct_});
     toolBar->addSeparator();
-    toolBar->addActions({drawAct_, rulerAct_, protractorAct_});
+    toolBar->addActions({drawAct_, rulerAct_, protractorAct_, probeAct_});
     toolBar->addSeparator();
     toolBar->addActions({snapAct_, gridAct_, zoomFitAct_});
     playback_ = new PlaybackBar(sim_, this);
@@ -241,6 +259,13 @@ void MainWindow::buildDocks()
     auto* ex = dock(tr("Explorer"), QStringLiteral("explorerDock"), explorer_, Qt::RightDockWidgetArea);
     auto* pr = dock(tr("Properties"), QStringLiteral("propertiesDock"), properties_, Qt::RightDockWidgetArea);
     splitDockWidget(ex, pr, Qt::Vertical);
+    auto* an = dock(tr("Analysis"), QStringLiteral("analysisDock"), new AnalysisPanel(viewport_->analysis(), doc_, this),
+                    Qt::RightDockWidgetArea);
+    triggerLog_ = new TriggerLogPanel(doc_, sim_, this);
+    auto* tl = dock(tr("Trigger Log"), QStringLiteral("triggerLogDock"), triggerLog_, Qt::BottomDockWidgetArea);
+    tabifyDockWidget(pr, an);
+    pr->raise();
+    tl->hide();
     resizeDocks({tb}, {230}, Qt::Horizontal);
     resizeDocks({ex, pr}, {380, 380}, Qt::Horizontal);
     resizeDocks({ex, pr}, {250, 550}, Qt::Vertical);
@@ -270,6 +295,8 @@ void MainWindow::buildMenus()
     file->addSeparator();
     file->addActions({saveAct_, saveAsAct_});
     file->addSeparator();
+    file->addActions({openReplayAct_, saveReplayAct_});
+    file->addSeparator();
     file->addAction(quitAct_);
 
     QMenu* edit = menuBar()->addMenu(tr("&Edit"));
@@ -286,6 +313,8 @@ void MainWindow::buildMenus()
     viewMenu_->addSeparator();
     viewMenu_->addActions({gridAct_, snapAct_, zoomFitAct_, statsAct_});
     viewMenu_->addSeparator();
+    viewMenu_->addAction(graphAct_);
+    viewMenu_->addSeparator();
     viewMenu_->addAction(resetLayoutAct_);
 
     QMenu* simMenu = menuBar()->addMenu(tr("&Simulation"));
@@ -296,7 +325,7 @@ void MainWindow::buildMenus()
     QMenu* tools = menuBar()->addMenu(tr("&Tools"));
     tools->addActions({selectToolAct_, moveAct_, rotateAct_, scaleAct_});
     tools->addSeparator();
-    tools->addActions({drawAct_, rulerAct_, protractorAct_});
+    tools->addActions({drawAct_, rulerAct_, protractorAct_, probeAct_});
 
     QMenu* help = menuBar()->addMenu(tr("&Help"));
     help->addAction(themedIcon(QStringLiteral("help-about"), QStringLiteral(":/icons/tool.svg")), tr("&About Kinetic"),
@@ -511,7 +540,7 @@ void MainWindow::showContextMenu(QPoint global)
     m.addSeparator();
     m.addActions({groupAct_, ungroupAct_});
     m.addSeparator();
-    m.addAction(zoomFitAct_);
+    m.addActions({graphAct_, zoomFitAct_});
     m.exec(global);
 }
 
@@ -542,6 +571,92 @@ QImage MainWindow::screenshot()
     for (QWidget* child : viewport_->findChildren<QWidget*>(Qt::FindDirectChildrenOnly))
         p.drawPixmap(r.topLeft() + child->pos(), child->grab());
     return img;
+}
+
+void MainWindow::newGraph()
+{
+    auto* g = new GraphPanel(doc_, sim_, this);
+    auto* d = new QDockWidget(tr("Graph"), this);
+    d->setObjectName(QStringLiteral("graphDock_%1").arg(++graphCount_));
+    d->setAttribute(Qt::WA_DeleteOnClose); // graphs are not part of the saved layout
+    d->setWidget(g);
+    connect(g, &GraphPanel::titleChanged, d, &QDockWidget::setWindowTitle);
+    addDockWidget(Qt::BottomDockWidgetArea, d);
+    // Bodies graph their speed, other measured items their first channel;
+    // with nothing selected the graph shows the scene's total energy.
+    int added = 0;
+    for (ItemId id : doc_->selection()) {
+        const ItemDef* item = doc_->item(id);
+        if (!item || added == 6) continue;
+        if (item->type->meta().kind == ItemKind::Body) {
+            g->addSeries({Quantity::Kind::Body, id, Quantity::Speed, 0});
+            ++added;
+            continue;
+        }
+        for (const Quantity& q : Quantity::options(*doc_, id))
+            if (q.kind == Quantity::Kind::Channel) {
+                g->addSeries(q);
+                ++added;
+                break;
+            }
+    }
+    if (!added) g->addSeries({Quantity::Kind::Energy, 0, Quantity::Total, 0});
+
+    d->show();
+    d->raise();
+}
+
+void MainWindow::saveReplay()
+{
+    if (!sim_->active() || !sim_->recording()) {
+        statusBar()->showMessage(tr("Run the simulation with recording on first."), 4000);
+        return;
+    }
+    const ReplayData r = sim_->exportReplay();
+    const QString path = QFileDialog::getSaveFileName(this, tr("Save Replay"), QString(),
+                                                      tr("Kinetic replays (*.kreplay);;All files (*)"));
+    if (path.isEmpty()) return;
+    ViewState view;
+    view.center = viewport_->center();
+    view.pixelsPerMetre = viewport_->pixelsPerMetre();
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly) || f.write(replayToBytes(r, view)) < 0 || !f.commit()) {
+        QMessageBox::warning(this, tr("Cannot save replay"), tr("%1: %2").arg(path, f.errorString()));
+        return;
+    }
+    statusBar()->showMessage(tr("Saved replay of %1 steps").arg(r.headStep), 4000);
+}
+
+void MainWindow::openReplay()
+{
+    if (!maybeSave()) return;
+    const QString path = QFileDialog::getOpenFileName(this, tr("Open Replay"), QString(),
+                                                      tr("Kinetic replays (*.kreplay);;All files (*)"));
+    if (path.isEmpty()) return;
+    QFile f(path);
+    ReplayFile rf;
+    QString err = f.errorString();
+    if (!f.open(QIODevice::ReadOnly) || !replayFromBytes(f.readAll(), rf, &err)) {
+        QMessageBox::warning(this, tr("Cannot open replay"), tr("%1: %2").arg(QFileInfo(path).fileName(), err));
+        return;
+    }
+    // The document shows every item the replay ever contains (in its latest
+    // logged form), so bodies added mid-run have definitions to draw with.
+    SceneData scene = rf.scene;
+    for (const LoggedCommand& c : rf.replay.log) {
+        if (!c.def || c.type == LoggedCommand::Type::SetWorld) continue;
+        if (ItemDef* d = scene.find(c.def->id))
+            *d = *c.def;
+        else
+            scene.items.push_back(*c.def);
+    }
+    for (const ItemDefPtr& d : rf.replay.items)
+        if (ItemDef* cur = scene.find(d->id)) *cur = *d; // initial conditions win for items present at the start
+    doc_->setFilePath({});
+    doc_->reset(std::move(scene));
+    sim_->loadReplay(rf.replay);
+    updateTitle();
+    statusBar()->showMessage(tr("Replay loaded: %1 steps; drag the timeline or press Play").arg(rf.replay.headStep), 6000);
 }
 
 } // namespace kn

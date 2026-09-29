@@ -48,6 +48,12 @@ public:
 
     bool hitTest(const ItemDef& d, const SceneView& view, Vec2 w, double tol) const override;
     std::unique_ptr<ItemRuntime> createRuntime(const ItemDef& def, World& w, const RestoreState*) const override;
+    QList<Channel> channels() const override
+    {
+        return {{4, QStringLiteral("Tension (side A)"), unit::N},
+                {6, QStringLiteral("Force on B"), unit::N},
+                {5, QStringLiteral("Rope length used"), unit::m}};
+    }
 
     void draw(const ItemDef& d, const DrawContext& ctx) const override
     {
