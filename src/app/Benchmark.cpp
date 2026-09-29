@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QTextStream>
 
 #include <chrono>
 #include <cstdio>
@@ -117,6 +118,55 @@ int runBenchmark(int argc, char** argv)
         std::printf("allocations:  counter unavailable (build without KINETIC_ALLOC_COUNTER)\n");
     }
     std::printf("energy:       total %.6g J, drift %.4f %%\n", snap.energy.total, snap.energy.driftPercent());
+    return 0;
+}
+
+} // namespace kn
+
+namespace kn {
+
+int printSchemaReference()
+{
+    QTextStream out(stdout);
+    auto typeName = [](PropType t) {
+        switch (t) {
+        case PropType::Double: return "number";
+        case PropType::Int: return "integer";
+        case PropType::Bool: return "bool";
+        case PropType::Enum: return "choice (index)";
+        case PropType::Vector: return "[x, y]";
+        case PropType::Colour: return "colour \"#aarrggbb\"";
+        case PropType::String: return "string";
+        case PropType::Points: return "[[x, y], ...]";
+        case PropType::ItemRef: return "item id";
+        case PropType::Bits: return "bit mask";
+        }
+        return "";
+    };
+    auto value = [](const PropDef& p) -> QString {
+        if (p.type == PropType::Enum) {
+            QStringList o;
+            for (int i = 0; i < p.options.size(); ++i) o << QStringLiteral("%1 %2").arg(i).arg(p.options[i]);
+            return o.join(QStringLiteral(", "));
+        }
+        if (p.type == PropType::Double) {
+            const double s = p.scale;
+            return QStringLiteral("%1 … %2%3").arg(p.min * s).arg(p.max * s).arg(p.unit.isEmpty() ? QString() : QLatin1Char(' ') + p.unit);
+        }
+        if (p.type == PropType::Int) return QStringLiteral("%1 … %2").arg(p.min).arg(p.max);
+        return p.unit;
+    };
+    for (const ItemType* t : ItemRegistry::instance().types()) {
+        const ItemMeta& m = t->meta();
+        out << "### " << (m.name.isEmpty() ? m.typeId : m.name) << " (`" << m.typeId << "`)\n\n";
+        if (!m.description.isEmpty()) out << m.description << "\n\n";
+        out << "| key | label | type | range / values |\n|---|---|---|---|\n";
+        for (const PropDef& p : t->schema().defs()) {
+            if (p.has(PF_Transient) || p.has(PF_Hidden)) continue;
+            out << "| `" << p.key << "` | " << p.label << " | " << typeName(p.type) << " | " << value(p) << " |\n";
+        }
+        out << "\n";
+    }
     return 0;
 }
 

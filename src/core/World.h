@@ -166,10 +166,12 @@ public:
     const std::vector<TriggerEvent>& events() const { return events_; }
     void clearEvents() { events_.clear(); }
 
-    // Named constants (Constant items) for equation-driven items.
-    void setConstant(const QString& name, double value);
-    const std::vector<std::pair<QString, double>>& constants() const { return constants_; }
-    uint64_t constantsVersion() const { return constantsVersion_; }
+    // Named constants (Constant items) for expressions. Slots are created by
+    // name at structure time and hold NaN until a Constant item sets them.
+    static constexpr int kMaxConstants = 256;
+    int constantSlot(const QString& name); // -1 when the table is full
+    const double* constantValues() const { return constantValues_.data(); }
+    void setConstantValue(int slot, double v) { constantValues_[size_t(slot)] = v; }
 
 private:
     struct Entry {
@@ -204,8 +206,8 @@ private:
     std::vector<int> charged_, magnets_, massive_; // rebuilt every step; capacity reserved at registration
     std::unordered_map<ItemId, int> bodyIndex_;
     std::vector<std::vector<b2ContactData>> contactScratch_; // one per worker
-    std::vector<std::pair<QString, double>> constants_;
-    uint64_t constantsVersion_ = 0;
+    std::vector<QString> constantNames_;
+    std::vector<double> constantValues_ = std::vector<double>(kMaxConstants, std::nan(""));
     std::vector<TriggerEvent> events_;
     uint64_t droppedEvents_ = 0;
     uint64_t step_ = 0;

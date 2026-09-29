@@ -179,7 +179,8 @@ void World::build(const std::vector<ItemDefPtr>& defs, const RestoreState* resto
 {
     for (auto it = items_.rbegin(); it != items_.rend(); ++it) destroyRuntime(*it);
     items_.clear();
-    constants_.clear();
+    constantNames_.clear();
+    std::fill(constantValues_.begin(), constantValues_.end(), std::nan(""));
     for (const ItemDefPtr& d : defs) items_.push_back({d, nullptr});
     reindex();
     for (Entry& e : items_)
@@ -562,19 +563,13 @@ void World::applyWorldFields()
     }
 }
 
-void World::setConstant(const QString& name, double value)
+int World::constantSlot(const QString& name)
 {
-    for (auto& c : constants_) {
-        if (c.first == name) {
-            if (c.second != value) {
-                c.second = value;
-                ++constantsVersion_;
-            }
-            return;
-        }
-    }
-    constants_.push_back({name, value});
-    ++constantsVersion_;
+    const auto it = std::find(constantNames_.begin(), constantNames_.end(), name);
+    if (it != constantNames_.end()) return int(it - constantNames_.begin());
+    if (int(constantNames_.size()) >= kMaxConstants) return -1;
+    constantNames_.push_back(name);
+    return int(constantNames_.size()) - 1;
 }
 
 void World::step()

@@ -117,6 +117,9 @@ public:
     void sensorEvent(World& w, ItemId body, bool begin) override
     {
         if (!body) return;
+        // Static scenery touching the zone is not an event.
+        const int bi = w.bodyIndex(body);
+        if (bi >= 0 && w.body(bi).type == b2_staticBody) return;
         const auto it = std::find(inside_.begin(), inside_.end(), body);
         // A rebuilt world reports existing overlaps again: ignore repeats.
         if (begin == (it != inside_.end())) return;

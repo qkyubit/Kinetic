@@ -351,6 +351,81 @@ void fields(SceneBuilder& sb)
     view(sb, {-0.5, 4}, 28);
 }
 
+// Static slab whose top surface runs from a to b (thickness below the line).
+ItemId ramp(SceneBuilder& sb, Vec2 a, Vec2 b, double thickness = 0.2, uint32_t color = 0x7f8c8d)
+{
+    const Vec2 d = b - a;
+    const Vec2 n = perp(normalized(d)); // upwards for a left-to-right ramp
+    const Vec2 c = (a + b) * 0.5 - n * (thickness / 2);
+    return sb.add("body.box", c, {{"width", length(d)}, {"height", thickness}, {"bodyType", int64_t(0)},
+                                  {"angle", std::atan2(d.y, d.x)}, {"color", Color::fromRgb(color)}});
+}
+
+void rubeGoldberg(SceneBuilder& sb)
+{
+    sb.setWorld("sleep", false);
+    // Shelf (top at y = 0) from x = -16 to 1.6, then a ramp down into a pit.
+    sb.add("body.box", {-7.2, -0.5}, {{"width", 17.6}, {"height", 1.0}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
+    // 1. A pendulum hammer, released from horizontal...
+    const Vec2 pivot{-13.5, 8.05};
+    const ItemId hammer = sb.add("body.circle", {-15.5, 8.05}, {{"radius", 0.3}, {"material", int64_t(1)}, {"color", Color::fromRgb(0xc0392b)}});
+    name(sb, hammer, "Hammer");
+    sb.connect("connector.rod", hammer, {-15.5, 8.05}, 0, pivot);
+    // 2. ...knocks a ball off a ledge and down the first ramp...
+    ramp(sb, {-13.8, 5.7}, {-12.6, 5.7});
+    ramp(sb, {-12.6, 5.7}, {-7.0, 0.0});
+    const ItemId ball = sb.add("body.circle", {-12.95, 5.95}, {{"radius", 0.25}, {"material", int64_t(1)}, {"trail", true}});
+    name(sb, ball, "Ball");
+    // 3. ...into a row of dominoes (a curb stops the ball at the first one)...
+    sb.add("body.box", {-5.37, 0.175}, {{"width", 0.1}, {"height", 0.35}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
+    for (int i = 0; i < 9; ++i) {
+        const ItemId d = sb.add("body.box", {-5.5 + i * 0.5, 0.4}, {{"width", 0.12}, {"height", 0.8}, {"density", 600.0},
+                                                               {"color", Color::fromRgb(i % 2 ? 0xf5f6fa : 0x2d3436)}});
+        name(sb, d, "Domino");
+    }
+    // 4. ...the last of which nudges a second ball down the ramp into the pit...
+    const ItemId ball2 = sb.add("body.circle", {-0.85, 0.2}, {{"radius", 0.2}, {"density", 300.0}, {"color", Color::fromRgb(0x27ae60)},
+                                                            {"trail", true}, {"trailColor", Color::fromRgb(0x27ae60)}});
+    name(sb, ball2, "Green ball");
+    ramp(sb, {1.6, 0.0}, {5.0, -2.5});
+    sb.add("body.box", {9.0, -3.0}, {{"width", 8.0}, {"height", 1.0}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
+    sb.add("body.box", {13.1, -1.9}, {{"width", 0.2}, {"height", 1.2}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
+    // 5. ...and through the finish gate.
+    const ItemId gate = sb.add("tool.trigger", {10.5, -1.8}, {{"width", 1.0}, {"height", 1.0}, {"label", QStringLiteral("Finish")}});
+    name(sb, gate, "Finish");
+    view(sb, {-1.5, 2.5}, 26);
+}
+
+void equations(SceneBuilder& sb)
+{
+    sb.setWorld("gravity", Vec2{0, 0});
+    sb.setWorld("sleep", false);
+    const ItemId w = sb.add("equation.constant", {0, 0}, {{"symbol", QStringLiteral("omega")}, {"value", 1.5}, {"min", 0.2}, {"max", 4.0},
+                                                        {"unit", QStringLiteral("rad/s")}});
+    name(sb, w, "omega");
+    const ItemId k = sb.add("equation.constant", {0, 0}, {{"symbol", QStringLiteral("k")}, {"value", 20.0}, {"min", 1.0}, {"max", 100.0},
+                                                        {"unit", QStringLiteral("N/m")}});
+    name(sb, k, "k");
+    const ItemId damping = sb.add("equation.constant", {0, 0}, {{"symbol", QStringLiteral("c")}, {"value", 0.2}, {"min", 0.0}, {"max", 2.0},
+                                                              {"unit", QStringLiteral("1/s")}});
+    name(sb, damping, "c");
+    // A Lissajous figure traced by a parametric path.
+    const ItemId path = sb.add("equation.path", {-6, 0}, {{"x", QStringLiteral("2.5*cos(omega*t)")}, {"y", QStringLiteral("2.5*sin(2*t)")},
+                                                       {"radius", 0.0}, {"trailLength", 20.0}, {"preview", 2 * kPi}});
+    name(sb, path, "Lissajous x = 2.5 cos(ωt), y = 2.5 sin(2t)");
+    // A damped oscillator integrated with RK4, drawn as a phase portrait (x, v).
+    const ItemId ode = sb.add("equation.ode", {0.5, 0}, {{"rate1", QStringLiteral("v")}, {"rate2", QStringLiteral("-omega^2*x - c*v")},
+                                                       {"initial1", 2.5}, {"scale", 1.0}, {"trailLength", 30.0}});
+    name(sb, ode, "Damped oscillator (phase portrait)");
+    // A ball in a Hooke central force F = −k r: an ellipse about the centre.
+    const ItemId ball = sb.add("body.circle", {9, 0}, {{"radius", 0.2}, {"density", 100.0}, {"velocity", Vec2{0, 3.0}},
+                                                     {"trail", true}, {"trailLength", 20.0}, {"mask", int64_t(0)}});
+    name(sb, ball, "Ball in F = −k r");
+    const ItemId f = sb.connect("equation.force", ball, {9, 0}, 0, {6.5, 0}, {{"fr", QStringLiteral("-k*r")}});
+    name(sb, f, "Central force −k r");
+    view(sb, {0.3, 0}, 40);
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -377,6 +452,8 @@ int main(int argc, char** argv)
         {"13_gear_train", gears},
         {"14_conveyors_and_trampoline", conveyors},
         {"15_fields_fans_and_explosions", fields},
+        {"16_rube_goldberg_chain", rubeGoldberg},
+        {"17_equations_and_constants", equations},
         {"99_stress_test_5000_bodies", stressTest},
     };
     for (const auto& [file, build] : scenes) {

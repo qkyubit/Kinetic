@@ -1,0 +1,846 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "Box 1",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    -7.2,
+                    -0.5
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 17.6
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 2,
+            "name": "Hammer",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#c0392bff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.57,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Steel",
+                "position": [
+                    -15.5,
+                    8.05
+                ],
+                "radius": 0.3,
+                "restitution": 0.6,
+                "showForces": false,
+                "staticFriction": 0.74,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 3,
+            "name": "Rod 3",
+            "props": {
+                "anchorA": [
+                    0,
+                    0
+                ],
+                "anchorB": [
+                    -13.5,
+                    8.05
+                ],
+                "bodyA": 2,
+                "bodyB": 0,
+                "collideConnected": false,
+                "color": "#7f8c8dff",
+                "length": 2
+            },
+            "type": "connector.rod"
+        },
+        {
+            "id": 4,
+            "name": "Box 4",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.2,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    -13.2,
+                    5.6000000000000005
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 1.200000000000001
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 5,
+            "name": "Box 5",
+            "props": {
+                "angle": -0.7942474899137061,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.2,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    -9.871333643151479,
+                    2.779917824272233
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 7.990619500389191
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 6,
+            "name": "Ball",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#3daee9ff",
+                "density": 7850,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.57,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Steel",
+                "position": [
+                    -12.95,
+                    5.95
+                ],
+                "radius": 0.25,
+                "restitution": 0.6,
+                "showForces": false,
+                "staticFriction": 0.74,
+                "trail": true,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 7,
+            "name": "Box 7",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.35,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    -5.37,
+                    0.175
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.1
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 8,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#2d3436ff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -5.5,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 9,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f5f6faff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -5,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 10,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#2d3436ff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -4.5,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 11,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f5f6faff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -4,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 12,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#2d3436ff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -3.5,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 13,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f5f6faff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -3,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 14,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#2d3436ff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -2.5,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 15,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#f5f6faff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -2,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 16,
+            "name": "Domino",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#2d3436ff",
+                "density": 600,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.8,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -1.5,
+                    0.4
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.12
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 17,
+            "name": "Green ball",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 0,
+                "color": "#27ae60ff",
+                "density": 300,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    -0.85,
+                    0.2
+                ],
+                "radius": 0.2,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": true,
+                "trailColor": "#27ae60ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 18,
+            "name": "Box 18",
+            "props": {
+                "angle": -0.634022719663422,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 0.2,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    3.240760954952248,
+                    -1.3305651012649424
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 4.220189569201838
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 19,
+            "name": "Box 19",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    9,
+                    -3
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 8
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 20,
+            "name": "Box 20",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 0,
+                "color": "#7f8c8dff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "height": 1.2,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    13.1,
+                    -1.9
+                ],
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ],
+                "width": 0.2
+            },
+            "type": "body.box"
+        },
+        {
+            "id": 21,
+            "name": "Finish",
+            "props": {
+                "angle": 0,
+                "color": "#f1c40f3c",
+                "height": 1,
+                "label": "Finish",
+                "position": [
+                    10.5,
+                    -1.8
+                ],
+                "width": 1
+            },
+            "type": "tool.trigger"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            -1.5,
+            2.5
+        ],
+        "pixelsPerMetre": 26
+    },
+    "world": {
+        "airDensity": 1.225,
+        "airDrag": false,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravitationalConstant": 6.674e-11,
+        "gravity": [
+            0,
+            -9.81
+        ],
+        "jointDamping": 2,
+        "jointHertz": 60,
+        "keyframeInterval": 240,
+        "mutualGravity": false,
+        "physicsHz": 120,
+        "restitutionThreshold": 1,
+        "sleep": false,
+        "substeps": 4
+    }
+}

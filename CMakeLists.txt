@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.28)
 project(Kinetic VERSION 1.0.0 DESCRIPTION "2D physics sandbox" LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -34,7 +34,8 @@ if(NOT box2d_FOUND)
             GIT_REPOSITORY https://github.com/erincatto/box2d.git
             GIT_TAG 8c661469c9507d3ad6fbd2fea3f1aa71669c2fe3 # v3.1.1
             GIT_SHALLOW FALSE
-            SYSTEM)
+            SYSTEM
+            EXCLUDE_FROM_ALL) # static, linked in; not installed
         FetchContent_MakeAvailable(box2d)
         message(STATUS "Using fetched Box2D v3.1.1")
     else()

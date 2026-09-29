@@ -183,7 +183,7 @@ so a trail's resolution depends on the frame rate, not the physics rate.
 **Trigger zones are Box2D sensors.** Events are produced on the physics thread
 at the end of the step in which the overlap began or ended and are delivered in
 order through a lossless SPSC queue (8,192 entries; the physics thread never
-blocks, so a UI stalled for more than that many events loses the oldest).
+blocks, so a UI stalled for more than that many events loses the newest).
 Keyframe rebuilds re-report existing overlaps; the zone keeps its "inside" set
 in its saved state and ignores repeats. Events are suppressed while scrubbing
 re-simulates from a keyframe. The log replaces its entries from step *s* on
@@ -267,3 +267,52 @@ weighted per channel so the samples add back to white. On dark themes rays use
 the additive pipeline, so undispersed white light looks white and a spectrum
 fans out; additive light is invisible on a light canvas, so light themes draw
 each ray in its own hue with normal blending.
+
+## Equations, examples and packaging (M5)
+
+**Expressions compile to bytecode with a hand-written recursive-descent
+parser.** No `eval`, no scripting engine, nothing but arithmetic, comparisons
+and a fixed function table. Evaluation uses a fixed-size stack and never
+allocates. Limits (4,096 characters, 256 recursion levels ≈ 85 nested
+parentheses, 4,096 instructions, stack depth 64) turn hostile input into
+column-accurate errors instead of stack overflows.
+
+**Constants are bound by name through slots in the world.** A Constant item
+writes its value into a named slot; expressions compiled anywhere reference
+the slot, so a constant can be edited live (a logged update, so replays and
+scrubbing stay exact), renamed, or defined after the expressions that use it.
+Unknown names are NaN until defined; items flag non-finite values in their
+snapshot and draw a warning instead of feeding NaN into Box2D. The editor
+checks syntax on every edit (status property), treating unknown names as
+possible constants.
+
+**Equation items move kinematic "marker" bodies.** Parametric paths and ODE
+plots drive a kinematic Box2D body by velocity (target minus current over one
+step), so paths push other bodies, and markers get trails, graphs and probes
+like any body; keyframes restore them exactly.
+
+**ODEs use classic RK4 at the physics rate**, in lockstep with the simulation
+(the state is part of keyframes). Four variables cover second-order systems in
+2D; RK4 at 120 Hz keeps a harmonic oscillator within 1e-8 after 10 s (test).
+
+**Force laws evaluate at the current state** (not the predicted position used
+for springs and pair forces): arbitrary formulas are not generally
+conservative, so the energy readout excludes them.
+
+**Examples are generated from code** (`tools/make_examples.cpp`), so they stay
+valid as schemas evolve; a test loads every example and runs it. The Rube
+Goldberg chain is checked to reach its finish gate (5.55 s).
+
+**Start page.** Shown instead of the viewport at start-up (optional): new,
+open, recent scenes and the examples. Help → Start Page returns to it.
+
+**Packaging.** The PKGBUILD builds the checkout it lives in (no `source`
+download, no network in `build()`), runs the tests in `check()` with the
+offscreen platform, and depends on `qt6-svg` for the SVG icons. The metainfo
+has no homepage URL until the project has one. The fetched-Box2D fallback is
+linked statically and excluded from `install`. The licence is MIT
+(placeholder chosen for packaging; change `LICENSE`, the PKGBUILD and the
+metainfo together).
+
+**`kinetic --schema`** prints the scene-format reference from the registered
+schemas, so documentation cannot drift from the code.

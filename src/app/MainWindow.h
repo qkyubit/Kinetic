@@ -8,6 +8,7 @@
 class QLabel;
 class QMenu;
 class QActionGroup;
+class QStackedWidget;
 
 namespace kn {
 
@@ -17,6 +18,7 @@ class ExplorerPanel;
 class PropertiesPanel;
 class PlaybackBar;
 class TriggerLogPanel;
+class StartPage;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -33,6 +35,8 @@ public:
     bool openExample(const QString& name);
     // Renders the whole window, including the RHI viewport, into an image.
     QImage screenshot();
+    // Shows the welcome page instead of the viewport (or the viewport again).
+    void showStartPage(bool on);
 
 protected:
     void closeEvent(QCloseEvent* e) override;
@@ -66,6 +70,8 @@ private:
     PropertiesPanel* properties_;
     PlaybackBar* playback_;
     TriggerLogPanel* triggerLog_;
+    StartPage* startPage_;
+    QStackedWidget* stack_;
     int graphCount_ = 0;
     QByteArray defaultState_;
 

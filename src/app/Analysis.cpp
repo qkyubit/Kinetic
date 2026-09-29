@@ -93,7 +93,8 @@ void Analysis::refreshTrailSet()
     trailIds_.clear();
     forceIds_.clear();
     for (const ItemDef& d : doc_->scene().items) {
-        if (d.type->kind() != ItemKind::Body) continue;
+        // Bodies, and equation items that move a marker body.
+        if (d.type->kind() != ItemKind::Body && d.type->kind() != ItemKind::Equation) continue;
         const int fi = propIndex(d, "showForces");
         if (fi >= 0 && d.b(fi) && doc_->effectiveVisible(d)) forceIds_.push_back(d.id);
         const int ti = propIndex(d, "trail");

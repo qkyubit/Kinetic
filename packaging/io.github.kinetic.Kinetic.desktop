@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Kinetic
+GenericName=Physics Sandbox
+Comment=Build 2D physics scenes and measure what happens
+Exec=kinetic %f
+Icon=io.github.kinetic.Kinetic
+Terminal=false
+Categories=Education;Physics;Qt;
+Keywords=physics;simulation;mechanics;optics;sandbox;box2d;
+StartupWMClass=kinetic

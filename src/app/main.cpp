@@ -3,18 +3,28 @@
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QElapsedTimer>
 #include <QIcon>
 #include <QTimer>
+
+#include <cstdio>
 
 #ifndef KINETIC_VERSION
 #define KINETIC_VERSION "dev"
 #endif
 
+namespace {
+QElapsedTimer startup;
+}
+
 int main(int argc, char** argv)
 {
+    startup.start();
     // Headless benchmark: no GUI, no display connection.
-    for (int i = 1; i < argc; ++i)
+    for (int i = 1; i < argc; ++i) {
         if (qstrcmp(argv[i], "--benchmark") == 0) return kn::runBenchmark(argc, argv);
+        if (qstrcmp(argv[i], "--schema") == 0) return kn::printSchemaReference();
+    }
 
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("Kinetic"));
@@ -41,6 +51,13 @@ int main(int argc, char** argv)
 
     kn::MainWindow w;
     w.show();
+    // Start-up profiling: print the time to the first frame and quit.
+    if (qEnvironmentVariableIsSet("KINETIC_STARTUP_EXIT")) {
+        QTimer::singleShot(0, &w, [] {
+            std::printf("first frame after %lld ms in main()\n", startup.elapsed());
+            QApplication::quit();
+        });
+    }
     if (!parser.positionalArguments().isEmpty()) w.openFile(parser.positionalArguments().first());
     if (parser.isSet(example) && !w.openExample(parser.value(example)))
         qWarning("no bundled example matches '%s'", qPrintable(parser.value(example)));

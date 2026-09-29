@@ -24,6 +24,28 @@ namespace {
 
 constexpr int kSliderSteps = 1000;
 
+// Spin box in scientific notation for ranges that reach tiny magnitudes
+// (a fixed number of decimals would round 6.674e-11 to zero).
+class SciSpinBox : public QDoubleSpinBox {
+public:
+    using QDoubleSpinBox::QDoubleSpinBox;
+    QString textFromValue(double v) const override { return locale().toString(v, 'g', 6); }
+    double valueFromText(const QString& text) const override
+    {
+        QString t = text;
+        if (!suffix().isEmpty()) t.chop(suffix().size());
+        return locale().toDouble(t.trimmed());
+    }
+    QValidator::State validate(QString& text, int&) const override
+    {
+        QString t = text;
+        if (!suffix().isEmpty() && t.endsWith(suffix())) t.chop(suffix().size());
+        bool ok = false;
+        locale().toDouble(t.trimmed(), &ok);
+        return ok ? QValidator::Acceptable : QValidator::Intermediate;
+    }
+};
+
 // Slider + spin box for a scalar property. Values are in internal units; the
 // spin box shows display units (PropDef::scale) with the unit suffix.
 class NumberEditor : public QWidget {
@@ -50,9 +72,10 @@ public:
                 if (onEdit) onEdit(double(v), false);
             });
         } else {
-            spin_ = new QDoubleSpinBox(this);
+            const bool tiny = pd.min * pd.scale > 0.0 && pd.min * pd.scale < 1e-3;
+            spin_ = tiny ? new SciSpinBox(this) : new QDoubleSpinBox(this);
             spin_->setRange(pd.min * pd.scale, pd.max * pd.scale);
-            spin_->setDecimals(pd.decimals);
+            spin_->setDecimals(tiny ? 323 : pd.decimals);
             spin_->setSuffix(suffix);
             spin_->setKeyboardTracking(false);
             spin_->setStepType(QAbstractSpinBox::AdaptiveDecimalStepType);

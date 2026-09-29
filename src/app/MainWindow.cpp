@@ -7,6 +7,8 @@
 #include "Icons.h"
 #include "PlaybackBar.h"
 #include "PropertiesPanel.h"
+#include "ConstantsPanel.h"
+#include "StartPage.h"
 #include "ToolboxPanel.h"
 #include "TriggerLogPanel.h"
 #include "Viewport.h"
@@ -31,6 +33,7 @@
 #include <QPainter>
 #include <QSaveFile>
 #include <QSettings>
+#include <QStackedWidget>
 #include <QStatusBar>
 #include <QToolBar>
 
@@ -48,7 +51,11 @@ MainWindow::MainWindow()
     doc_ = new Document(this);
     sim_ = new SimController(doc_, this);
     viewport_ = new Viewport(doc_, sim_, this);
-    setCentralWidget(viewport_);
+    startPage_ = new StartPage(this);
+    stack_ = new QStackedWidget(this);
+    stack_->addWidget(viewport_);
+    stack_->addWidget(startPage_);
+    setCentralWidget(stack_);
     setDockOptions(AnimatedDocks | AllowNestedDocks | AllowTabbedDocks);
 
     buildActions();
@@ -93,6 +100,22 @@ MainWindow::MainWindow()
     restoreLayout();
     doc_->reset(SceneData::empty());
     updateTitle();
+
+    connect(startPage_, &StartPage::newSceneRequested, this, [this] {
+        newScene();
+        showStartPage(false);
+    });
+    connect(startPage_, &StartPage::openRequested, this, &MainWindow::open);
+    connect(startPage_, &StartPage::fileRequested, this, &MainWindow::openFile);
+    connect(startPage_, &StartPage::exampleRequested, this, [this](const QString& f) { openExample(f); });
+    showStartPage(QSettings().value(QStringLiteral("startPage/show"), true).toBool());
+}
+
+void MainWindow::showStartPage(bool on)
+{
+    if (on) startPage_->refresh();
+    stack_->setCurrentWidget(on ? static_cast<QWidget*>(startPage_) : viewport_);
+    if (!on) viewport_->setFocus();
 }
 
 MainWindow::~MainWindow() = default;
@@ -263,7 +286,9 @@ void MainWindow::buildDocks()
                     Qt::RightDockWidgetArea);
     triggerLog_ = new TriggerLogPanel(doc_, sim_, this);
     auto* tl = dock(tr("Trigger Log"), QStringLiteral("triggerLogDock"), triggerLog_, Qt::BottomDockWidgetArea);
+    auto* cp = dock(tr("Constants"), QStringLiteral("constantsDock"), new ConstantsPanel(doc_, this), Qt::RightDockWidgetArea);
     tabifyDockWidget(pr, an);
+    tabifyDockWidget(an, cp);
     pr->raise();
     tl->hide();
     resizeDocks({tb}, {230}, Qt::Horizontal);
@@ -277,13 +302,9 @@ void MainWindow::buildMenus()
     file->addActions({newAct_, openAct_});
     examplesMenu_ = file->addMenu(themedIcon(QStringLiteral("folder-open"), QStringLiteral(":/icons/tool.svg")),
                                   tr("Open &Example"));
-    const QStringList examples = QDir(QStringLiteral(":/examples")).entryList({QStringLiteral("*.json")}, QDir::Files,
-                                                                              QDir::Name);
+    const QStringList examples = exampleFiles();
     for (const QString& f : examples) {
-        QString title = QFileInfo(f).completeBaseName();
-        title.replace(QLatin1Char('_'), QLatin1Char(' '));
-        if (!title.isEmpty() && title[0].isDigit()) title = title.section(QLatin1Char(' '), 1); // "01 pendulum"
-        title[0] = title[0].toUpper();
+        const QString title = exampleTitle(f);
         QAction* a = examplesMenu_->addAction(title);
         connect(a, &QAction::triggered, this, [this, f, title] {
             if (!maybeSave()) return;
@@ -328,6 +349,9 @@ void MainWindow::buildMenus()
     tools->addActions({drawAct_, rulerAct_, protractorAct_, probeAct_});
 
     QMenu* help = menuBar()->addMenu(tr("&Help"));
+    help->addAction(themedIcon(QStringLiteral("go-home"), QStringLiteral(":/icons/tool.svg")), tr("&Start Page"), this,
+                    [this] { showStartPage(true); });
+    help->addSeparator();
     help->addAction(themedIcon(QStringLiteral("help-about"), QStringLiteral(":/icons/tool.svg")), tr("&About Kinetic"),
                     this, [this] {
                         QMessageBox::about(this, tr("About Kinetic"),
@@ -388,6 +412,7 @@ void MainWindow::newScene()
     if (!maybeSave()) return;
     doc_->setFilePath({});
     doc_->reset(SceneData::empty());
+    showStartPage(false);
     updateTitle();
 }
 
@@ -407,6 +432,7 @@ void MainWindow::openScene(const QByteArray& json, const QString& title)
     }
     doc_->setFilePath({});
     doc_->reset(std::move(r.scene));
+    showStartPage(false);
     if (!r.warnings.isEmpty())
         statusBar()->showMessage(tr("Loaded with %n warning(s): %1", nullptr, int(r.warnings.size())).arg(r.warnings.first()),
                                  10000);
@@ -427,6 +453,8 @@ bool MainWindow::openFile(const QString& path)
     }
     doc_->reset(std::move(r.scene));
     doc_->setFilePath(path);
+    addRecentFile(path);
+    showStartPage(false);
     if (r.fileVersion < kSceneSchemaVersion)
         statusBar()->showMessage(tr("Upgraded scene from schema version %1 to %2; saving will write the new format.")
                                      .arg(r.fileVersion)
@@ -452,6 +480,7 @@ bool MainWindow::save()
         return false;
     }
     doc_->undoStack()->setClean();
+    addRecentFile(doc_->filePath());
     statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(doc_->filePath()).fileName()), 3000);
     updateTitle();
     return true;
@@ -550,11 +579,12 @@ namespace kn {
 
 bool MainWindow::openExample(const QString& name)
 {
-    for (const QString& f : QDir(QStringLiteral(":/examples")).entryList({QStringLiteral("*.json")}, QDir::Files, QDir::Name)) {
+    for (const QString& f : exampleFiles()) {
         if (!f.contains(name, Qt::CaseInsensitive)) continue;
+        if (!maybeSave()) return true;
         QFile in(QStringLiteral(":/examples/") + f);
         if (!in.open(QIODevice::ReadOnly)) return false;
-        openScene(in.readAll(), f);
+        openScene(in.readAll(), exampleTitle(f));
         return true;
     }
     return false;
@@ -563,6 +593,7 @@ bool MainWindow::openExample(const QString& name)
 QImage MainWindow::screenshot()
 {
     QImage img = grab().toImage();
+    if (stack_->currentWidget() != viewport_) return img;
     const QImage vp = viewport_->grabFramebuffer();
     QPainter p(&img);
     const QRect r(viewport_->mapTo(this, QPoint(0, 0)), viewport_->size());
@@ -654,6 +685,7 @@ void MainWindow::openReplay()
         if (ItemDef* cur = scene.find(d->id)) *cur = *d; // initial conditions win for items present at the start
     doc_->setFilePath({});
     doc_->reset(std::move(scene));
+    showStartPage(false);
     sim_->loadReplay(rf.replay);
     updateTitle();
     statusBar()->showMessage(tr("Replay loaded: %1 steps; drag the timeline or press Play").arg(rf.replay.headStep), 6000);

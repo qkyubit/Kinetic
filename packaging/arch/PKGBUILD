@@ -1,0 +1,33 @@
+# Maintainer: Kinetic contributors
+# Builds from the checkout this file lives in; build() needs no network.
+pkgname=kinetic
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='2D physics sandbox for KDE Plasma (rigid bodies, fields, fluids, optics, equations)'
+arch=('x86_64')
+license=('MIT')
+depends=('qt6-base' 'qt6-svg' 'box2d' 'hicolor-icon-theme')
+makedepends=('cmake' 'ninja' 'qt6-shadertools')
+source=()
+sha256sums=()
+
+_srcroot="$(realpath "${startdir}/../..")"
+
+build() {
+  cmake -S "${_srcroot}" -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DKINETIC_FETCH_BOX2D=OFF \
+    -DKINETIC_BUILD_TOOLS=OFF \
+    -DKINETIC_BUILD_TESTS=ON
+  cmake --build build
+}
+
+check() {
+  QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build
+  install -Dm644 "${_srcroot}/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}
