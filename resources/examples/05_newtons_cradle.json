@@ -312,10 +312,12 @@
     },
     "world": {
         "airDensity": 1.225,
+        "airDrag": false,
         "contactDamping": 10,
         "contactHertz": 30,
         "continuous": true,
         "coulombSoftening": 0.05,
+        "gravitationalConstant": 6.674e-11,
         "gravity": [
             0,
             -9.81
@@ -323,6 +325,7 @@
         "jointDamping": 2,
         "jointHertz": 240,
         "keyframeInterval": 960,
+        "mutualGravity": false,
         "physicsHz": 480,
         "restitutionThreshold": 0.01,
         "sleep": false,

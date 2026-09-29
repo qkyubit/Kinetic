@@ -17,6 +17,9 @@ struct WorldSettings {
     bool sleep = true;
     bool continuous = true;
     double airDensity = 1.225;
+    bool airDrag = false; // quadratic air drag on every body
+    bool mutualGravity = false; // Newtonian attraction between all dynamic bodies
+    double gravitationalConstant = 6.674e-11;
     double jointHertz = 60.0;
     double jointDamping = 2.0;
     double coulombSoftening = 0.05;
@@ -142,6 +145,15 @@ public:
     void addForce(int index, ForceSource source, b2Vec2 force, b2Vec2 point, bool wake = true);
     void addForceAtCenter(int index, ForceSource source, b2Vec2 force, bool wake = true);
     void addTorque(int index, ForceSource source, float torque, bool wake = true);
+    // Field forces act on awake dynamic bodies only: a body resting in a field
+    // may fall asleep like one resting under gravity. Field items call
+    // wakeAll() when they appear or change.
+    void addFieldForce(int index, ForceSource source, b2Vec2 force);
+    void addFieldForce(int index, ForceSource source, b2Vec2 force, b2Vec2 point);
+    void addFieldTorque(int index, ForceSource source, float torque);
+    void wakeAll();
+    // Width of the body's silhouette across `axis` (unit vector), per metre of depth.
+    double silhouetteWidth(int index, b2Vec2 axis) const;
     // Records a force that Box2D applies itself (contacts, joints, gravity).
     void record(int index, ForceSource source, b2Vec2 force, float torque);
 
@@ -179,6 +191,7 @@ private:
     void updateFrictionState(BodyRec& b);
     void refreshBodyState(BodyRec& b);
     void applySettings();
+    void applyWorldFields();
 
     WorldSettings settings_;
     b2WorldId id_ = b2_nullWorldId;
@@ -188,6 +201,7 @@ private:
     std::unordered_map<ItemId, size_t> itemIndex_;
     std::vector<BodyRec> bodies_;
     std::vector<int> freeBodies_;
+    std::vector<int> charged_, magnets_, massive_; // rebuilt every step; capacity reserved at registration
     std::unordered_map<ItemId, int> bodyIndex_;
     std::vector<std::vector<b2ContactData>> contactScratch_; // one per worker
     std::vector<std::pair<QString, double>> constants_;

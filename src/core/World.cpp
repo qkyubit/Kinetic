@@ -5,6 +5,7 @@
 #include <mutex>
 
 #include "AllocCounter.h"
+#include "Geometry.h"
 #include "Friction.h"
 #include "TaskPool.h"
 
@@ -34,6 +35,9 @@ WorldSettings WorldSettings::fromDef(const ItemDef& d)
     s.sleep = numberProp(d, "sleep", 1) != 0.0;
     s.continuous = numberProp(d, "continuous", 1) != 0.0;
     s.airDensity = numberProp(d, "airDensity", 1.225);
+    s.airDrag = numberProp(d, "airDrag", 0) != 0.0;
+    s.mutualGravity = numberProp(d, "mutualGravity", 0) != 0.0;
+    s.gravitationalConstant = numberProp(d, "gravitationalConstant", 6.674e-11);
     s.jointHertz = numberProp(d, "jointHertz", 60);
     s.jointDamping = numberProp(d, "jointDamping", 2);
     s.coulombSoftening = numberProp(d, "coulombSoftening", 0.05);
@@ -313,6 +317,9 @@ int World::registerBody(ItemId item, b2BodyId id)
     b.alive = true;
     b2Body_SetUserData(id, reinterpret_cast<void*>(intptr_t(index) + 1));
     bodyIndex_[item] = index;
+    charged_.reserve(bodies_.size());
+    magnets_.reserve(bodies_.size());
+    massive_.reserve(bodies_.size());
     refreshMass(index);
     refreshBodyState(b);
     b.prevV = b.v;
@@ -418,6 +425,143 @@ void World::addTorque(int index, ForceSource source, float t, bool wake)
     addEntry(b, source, 0.0f, 0.0f, t);
 }
 
+void World::addFieldForce(int index, ForceSource source, b2Vec2 f)
+{
+    BodyRec& b = bodies_[size_t(index)];
+    if (b.type != b2_dynamicBody || !b.awake) return;
+    b2Body_ApplyForceToCenter(b.id, f, false);
+    addEntry(b, source, f.x, f.y, 0.0f);
+}
+
+void World::addFieldForce(int index, ForceSource source, b2Vec2 f, b2Vec2 point)
+{
+    BodyRec& b = bodies_[size_t(index)];
+    if (b.type != b2_dynamicBody || !b.awake) return;
+    b2Body_ApplyForce(b.id, f, point, false);
+    addEntry(b, source, f.x, f.y, b2Cross(b2Sub(point, b.com), f));
+}
+
+void World::addFieldTorque(int index, ForceSource source, float t)
+{
+    BodyRec& b = bodies_[size_t(index)];
+    if (b.type != b2_dynamicBody || !b.awake) return;
+    b2Body_ApplyTorque(b.id, t, false);
+    addEntry(b, source, 0.0f, 0.0f, t);
+}
+
+void World::wakeAll()
+{
+    for (BodyRec& b : bodies_)
+        if (b.alive && b.type == b2_dynamicBody && !b2Body_IsAwake(b.id)) {
+            b2Body_SetAwake(b.id, true);
+            b.awake = true;
+        }
+}
+
+double World::silhouetteWidth(int index, b2Vec2 axis) const
+{
+    const BodyRec& b = bodies_[size_t(index)];
+    const Pose pose = b.pose();
+    double lo = 1e300, hi = -1e300;
+    for (const Shape& sh : b.shapes) geom::projectedRange(sh, pose, {axis.x, axis.y}, lo, hi);
+    return hi > lo ? hi - lo : 0.0;
+}
+
+namespace {
+constexpr double kCoulomb = 8.9875517923e9; // 1 / (4π ε0), N·m²/C²
+constexpr double kMu0Over4Pi = 1e-7;        // μ0 / 4π, T·m/A
+
+b2Vec2 worldMoment(const BodyRec& b) { return b2RotateVector(b.rot, b.magMoment); }
+} // namespace
+
+// Air drag, Coulomb forces between charged bodies and dipole–dipole forces and
+// torques between magnets. Pair forces use the predicted positions (see
+// predictPoint) and are applied equal and opposite.
+void World::applyWorldFields()
+{
+    const float h = dt();
+    const float rho = float(settings_.airDensity);
+    charged_.clear();
+    magnets_.clear();
+    massive_.clear();
+    for (int i = 0; i < int(bodies_.size()); ++i) {
+        const BodyRec& b = bodies_[size_t(i)];
+        if (!b.alive) continue;
+        if (settings_.mutualGravity && b.type == b2_dynamicBody) massive_.push_back(i);
+        if (b.charge != 0.0f) charged_.push_back(i);
+        if (b.magMoment.x != 0.0f || b.magMoment.y != 0.0f) magnets_.push_back(i);
+        if (!settings_.airDrag || rho <= 0.0f || b.type != b2_dynamicBody || !b.awake) continue;
+        const float speed = b2Length(b.v);
+        if (speed < 1e-6f) continue;
+        const b2Vec2 dir = b2MulSV(1.0f / speed, b.v);
+        const float width = float(silhouetteWidth(i, {-dir.y, dir.x}));
+        // ½ ρ Cd A v², never more than stops the body within one step.
+        const float f = std::min(0.5f * rho * b.dragCoefficient * width * speed * speed, b.mass * speed / h);
+        addFieldForce(i, ForceSource::Drag, b2MulSV(-f, dir));
+    }
+
+    const double eps2 = settings_.coulombSoftening * settings_.coulombSoftening;
+    for (size_t a = 0; a < charged_.size(); ++a) {
+        const BodyRec& A = bodies_[size_t(charged_[a])];
+        const b2Vec2 pa = predictPoint(charged_[a], A.com);
+        for (size_t c = a + 1; c < charged_.size(); ++c) {
+            const BodyRec& B = bodies_[size_t(charged_[c])];
+            const b2Vec2 pb = predictPoint(charged_[c], B.com);
+            const double rx = double(pa.x) - pb.x, ry = double(pa.y) - pb.y;
+            const double r2 = rx * rx + ry * ry + eps2;
+            const double k = kCoulomb * double(A.charge) * double(B.charge) / (r2 * std::sqrt(r2));
+            const b2Vec2 f{float(k * rx), float(k * ry)};
+            addFieldForce(charged_[a], ForceSource::Electric, f);
+            addFieldForce(charged_[c], ForceSource::Electric, b2Neg(f));
+        }
+    }
+
+    // ponytail: O(n²) over all dynamic bodies; a Barnes–Hut tree if large N-body scenes matter.
+    for (size_t a = 0; a < massive_.size(); ++a) {
+        const BodyRec& A = bodies_[size_t(massive_[a])];
+        const b2Vec2 pa = predictPoint(massive_[a], A.com);
+        for (size_t c = a + 1; c < massive_.size(); ++c) {
+            const BodyRec& B = bodies_[size_t(massive_[c])];
+            const b2Vec2 pb = predictPoint(massive_[c], B.com);
+            const double rx = double(pa.x) - pb.x, ry = double(pa.y) - pb.y;
+            const double r2 = rx * rx + ry * ry + eps2;
+            const double k = -settings_.gravitationalConstant * double(A.mass) * double(B.mass) / (r2 * std::sqrt(r2));
+            const b2Vec2 f{float(k * rx), float(k * ry)};
+            addFieldForce(massive_[a], ForceSource::Field, f);
+            addFieldForce(massive_[c], ForceSource::Field, b2Neg(f));
+        }
+    }
+
+    for (size_t a = 0; a < magnets_.size(); ++a) {
+        const BodyRec& A = bodies_[size_t(magnets_[a])];
+        const b2Vec2 pa = predictPoint(magnets_[a], A.com);
+        const b2Vec2 ma = worldMoment(A);
+        for (size_t c = a + 1; c < magnets_.size(); ++c) {
+            const BodyRec& B = bodies_[size_t(magnets_[c])];
+            const b2Vec2 pb = predictPoint(magnets_[c], B.com);
+            const b2Vec2 mb = worldMoment(B);
+            const double rx = double(pa.x) - pb.x, ry = double(pa.y) - pb.y; // from B to A
+            const double r = std::sqrt(rx * rx + ry * ry);
+            if (r < 1e-9) continue;
+            const double ux = rx / r, uy = ry / r;
+            const double d2 = r * r + eps2, d = std::sqrt(d2);
+            const double maU = ma.x * ux + ma.y * uy, mbU = mb.x * ux + mb.y * uy, mab = ma.x * mb.x + ma.y * mb.y;
+            // Force on A: 3μ0/(4π d⁴) [(mb·u) ma + (ma·u) mb + (ma·mb) u − 5 (ma·u)(mb·u) u]
+            const double kf = 3.0 * kMu0Over4Pi / (d2 * d2);
+            const double fx = kf * (mbU * ma.x + maU * mb.x + mab * ux - 5.0 * maU * mbU * ux);
+            const double fy = kf * (mbU * ma.y + maU * mb.y + mab * uy - 5.0 * maU * mbU * uy);
+            addFieldForce(magnets_[a], ForceSource::Magnetic, {float(fx), float(fy)});
+            addFieldForce(magnets_[c], ForceSource::Magnetic, {float(-fx), float(-fy)});
+            // Torques m × B, with B of a dipole: μ0/(4π d³) [3 (m·u) u − m] (u from the source).
+            const double kb = kMu0Over4Pi / (d2 * d);
+            const double bAx = kb * (3.0 * mbU * ux - mb.x), bAy = kb * (3.0 * mbU * uy - mb.y); // B of B at A
+            const double bBx = kb * (3.0 * maU * ux - ma.x), bBy = kb * (3.0 * maU * uy - ma.y); // B of A at B
+            addFieldTorque(magnets_[a], ForceSource::Magnetic, float(ma.x * bAy - ma.y * bAx));
+            addFieldTorque(magnets_[c], ForceSource::Magnetic, float(mb.x * bBy - mb.y * bBx));
+        }
+    }
+}
+
 void World::setConstant(const QString& name, double value)
 {
     for (auto& c : constants_) {
@@ -467,6 +611,7 @@ void World::step()
             addEntry(b, ForceSource::Damping, 0.0f, 0.0f, -b.inertia * b.angularDamping * b.w);
     }
 
+    applyWorldFields();
     for (Entry& e : items_)
         if (e.rt) e.rt->preStep(*this);
 
@@ -616,6 +761,32 @@ EnergySnap World::energy() const
         const PotentialEnergy pe = en.rt->potentialEnergy(*this);
         e.spring += pe.spring;
         e.field += pe.field;
+    }
+    // Pair potentials: softened Coulomb, mutual gravity, dipole–dipole.
+    const double eps2 = settings_.coulombSoftening * settings_.coulombSoftening;
+    const double G = settings_.mutualGravity ? settings_.gravitationalConstant : 0.0;
+    const size_t n = bodies_.size();
+    for (size_t a = 0; a < n; ++a) {
+        const BodyRec& A = bodies_[a];
+        if (!A.alive) continue;
+        const bool massive = G != 0.0 && A.type == b2_dynamicBody;
+        const bool magnet = A.magMoment.x != 0.0f || A.magMoment.y != 0.0f;
+        if (A.charge == 0.0f && !massive && !magnet) continue;
+        for (size_t c = a + 1; c < n; ++c) {
+            const BodyRec& B = bodies_[c];
+            if (!B.alive) continue;
+            const double rx = double(A.com.x) - B.com.x, ry = double(A.com.y) - B.com.y;
+            const double r2 = rx * rx + ry * ry;
+            if (A.charge != 0.0f && B.charge != 0.0f)
+                e.field += kCoulomb * double(A.charge) * double(B.charge) / std::sqrt(r2 + eps2);
+            if (massive && B.type == b2_dynamicBody) e.field -= G * double(A.mass) * double(B.mass) / std::sqrt(r2 + eps2);
+            if (magnet && (B.magMoment.x != 0.0f || B.magMoment.y != 0.0f) && r2 > 1e-18) {
+                const double r = std::sqrt(r2), ux = rx / r, uy = ry / r, d2 = r2 + eps2, d = std::sqrt(d2);
+                const b2Vec2 ma = worldMoment(A), mb = worldMoment(B);
+                const double maU = ma.x * ux + ma.y * uy, mbU = mb.x * ux + mb.y * uy, mab = ma.x * mb.x + ma.y * mb.y;
+                e.field -= kMu0Over4Pi / (d2 * d) * (3.0 * maU * mbU - mab);
+            }
+        }
     }
     e.total = e.kinetic + e.gravity + e.spring + e.field;
     if (!baselineValid_) {

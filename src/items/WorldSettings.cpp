@@ -35,7 +35,16 @@ public:
             .tip(QStringLiteral("Impacts slower than this are treated as perfectly inelastic (Box2D's default is 1 m/s)."));
         s.beginGroup(QStringLiteral("Environment"));
         s.num(QStringLiteral("airDensity"), QStringLiteral("Air density"), unit::density, 0, 20, 1.225, 3)
-            .tip(QStringLiteral("Used by wind and fans."));
+            .tip(QStringLiteral("Used by air drag, wind and fans."));
+        s.boolean(QStringLiteral("airDrag"), QStringLiteral("Air drag"), false)
+            .tip(QStringLiteral("Quadratic drag ½ ρ Cd A v² on every body (A: silhouette width × 1 m depth; "
+                                "Cd: each body's drag coefficient)."));
+        s.boolean(QStringLiteral("mutualGravity"), QStringLiteral("Mutual gravity"), false)
+            .tip(QStringLiteral("Newtonian attraction G m₁ m₂ / r² between every pair of dynamic bodies."));
+        s.num(QStringLiteral("gravitationalConstant"), QStringLiteral("Gravitational constant"), QStringLiteral("N·m²/kg²"),
+              1e-12, 1e6, 6.674e-11, 4)
+            .log()
+            .tip(QStringLiteral("Raise it to make orbits of kilogram-scale bodies visible."));
         s.num(QStringLiteral("coulombSoftening"), QStringLiteral("Coulomb softening"), unit::m, 0.001, 1, 0.05, 3)
             .tip(QStringLiteral("Plummer softening length for electric and point-gravity forces."));
         s.beginGroup(QStringLiteral("Replay"));

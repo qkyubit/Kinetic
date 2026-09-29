@@ -1,0 +1,252 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "Magnetic field",
+            "props": {
+                "angle": 0,
+                "color": "#e8439332",
+                "height": 9,
+                "position": [
+                    -4,
+                    0
+                ],
+                "radius": 3,
+                "region": "Rectangle",
+                "strength": 30000,
+                "width": 9
+            },
+            "type": "field.magnetic"
+        },
+        {
+            "id": 2,
+            "name": "Positive charge",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 1e-06,
+                "color": "#e74c3cff",
+                "density": 1,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 0,
+                "material": "Custom",
+                "position": [
+                    -5.5,
+                    0.5
+                ],
+                "radius": 0.1,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": true,
+                "trailColor": "#e74c3cff",
+                "trailFade": true,
+                "trailLength": 20,
+                "velocity": [
+                    1.43,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 3,
+            "name": "Negative charge",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": -1e-06,
+                "color": "#3daee9ff",
+                "density": 1,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 0,
+                "material": "Custom",
+                "position": [
+                    -2.5,
+                    -0.5
+                ],
+                "radius": 0.1,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": true,
+                "trailColor": "#3daee9ff",
+                "trailFade": true,
+                "trailLength": 20,
+                "velocity": [
+                    1.43,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 4,
+            "name": "Positive charge",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": 5e-07,
+                "color": "#f39c1fff",
+                "density": 1,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 0,
+                "material": "Custom",
+                "position": [
+                    -4,
+                    3.2
+                ],
+                "radius": 0.1,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": true,
+                "trailColor": "#f39c1fff",
+                "trailFade": true,
+                "trailLength": 20,
+                "velocity": [
+                    0.95,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 5,
+            "name": "Fixed +10 µC",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Static",
+                "bullet": false,
+                "charge": 1e-05,
+                "color": "#3daee9ff",
+                "density": 700,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Wood",
+                "position": [
+                    9,
+                    0
+                ],
+                "radius": 0.2,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": false,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 5,
+                "velocity": [
+                    0,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        },
+        {
+            "id": 6,
+            "name": "Orbiting −1 µC",
+            "props": {
+                "angle": 0,
+                "angularDamping": 0,
+                "angularVelocity": 0,
+                "bodyType": "Dynamic",
+                "bullet": false,
+                "charge": -1e-06,
+                "color": "#3daee9ff",
+                "density": 1,
+                "dragCoefficient": 1,
+                "fixedRotation": false,
+                "gravityScale": 1,
+                "kineticFriction": 0.3,
+                "label": "",
+                "layers": 1,
+                "linearDamping": 0,
+                "mask": 65535,
+                "material": "Custom",
+                "position": [
+                    9,
+                    1.5
+                ],
+                "radius": 0.1,
+                "restitution": 0.45,
+                "showForces": false,
+                "staticFriction": 0.5,
+                "trail": true,
+                "trailColor": "#e67e22ff",
+                "trailFade": true,
+                "trailLength": 20,
+                "velocity": [
+                    1.381020502049364,
+                    0
+                ]
+            },
+            "type": "body.circle"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            2,
+            0
+        ],
+        "pixelsPerMetre": 38
+    },
+    "world": {
+        "airDensity": 1.225,
+        "airDrag": false,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravitationalConstant": 6.674e-11,
+        "gravity": [
+            0,
+            0
+        ],
+        "jointDamping": 2,
+        "jointHertz": 60,
+        "keyframeInterval": 240,
+        "mutualGravity": false,
+        "physicsHz": 120,
+        "restitutionThreshold": 1,
+        "sleep": false,
+        "substeps": 4
+    }
+}

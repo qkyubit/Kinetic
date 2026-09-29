@@ -36,6 +36,8 @@ void AnalysisOptions::load()
     pxPerMps2 = s.value(QStringLiteral("pxPerMps2"), pxPerMps2).toDouble();
     trails = s.value(QStringLiteral("trails"), trails).toBool();
     energy = s.value(QStringLiteral("energy"), energy).toBool();
+    field = std::clamp(s.value(QStringLiteral("field"), field).toInt(), 0, 4);
+    fieldLines = s.value(QStringLiteral("fieldLines"), fieldLines).toBool();
 }
 
 void AnalysisOptions::save() const
@@ -55,6 +57,8 @@ void AnalysisOptions::save() const
     s.setValue(QStringLiteral("pxPerMps2"), pxPerMps2);
     s.setValue(QStringLiteral("trails"), trails);
     s.setValue(QStringLiteral("energy"), energy);
+    s.setValue(QStringLiteral("field"), field);
+    s.setValue(QStringLiteral("fieldLines"), fieldLines);
 }
 
 Analysis::Analysis(Document* doc, SimController* sim, QObject* parent) : QObject(parent), doc_(doc), sim_(sim)

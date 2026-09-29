@@ -1012,6 +1012,10 @@ void Viewport::buildFrame()
     batch_.pxPerM = ppm_;
     if (grid_) drawGrid();
     drawItems();
+    opticsView_.draw(batch_, theme_, *doc_, *this);
+    const AnalysisOptions& ao = analysis_->options();
+    fieldOverlay_.draw(batch_, theme_, *doc_, *this, FieldOverlay::Mode(ao.field), ao.fieldLines,
+                       toWorld(QPointF(0, height())), toWorld(QPointF(width(), 0)), ppm_);
     analysis_->draw(batch_, theme_, ppm_, selected_);
     drawSelectionAndGizmo();
     drawToolPreview();

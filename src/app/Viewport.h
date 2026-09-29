@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Document.h"
+#include "SceneOverlays.h"
 #include "SimController.h"
 
 #include "core/RenderBatch.h"
@@ -140,6 +141,8 @@ private:
     Document* doc_;
     SimController* sim_;
     std::unique_ptr<Analysis> analysis_;
+    FieldOverlay fieldOverlay_;
+    OpticsView opticsView_;
     ViewportOverlay* overlay_ = nullptr;
 
     Vec2 center_{0.0, 4.0};

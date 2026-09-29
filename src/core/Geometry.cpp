@@ -387,13 +387,12 @@ AreaMoment shapeInBox(const Shape& s, const Pose& pose, Vec2 lo, Vec2 hi)
     return {};
 }
 
-double projectedWidth(const Shape& s, const Pose& pose, Vec2 axis)
+void projectedRange(const Shape& s, const Pose& pose, Vec2 axis, double& lo, double& hi)
 {
-    double lo = 1e300, hi = -1e300;
     auto add = [&](Vec2 p) {
         const double t = dot(p, axis);
-        lo = std::min(lo, t);
-        hi = std::max(hi, t);
+        lo = std::min(lo, t - s.radius);
+        hi = std::max(hi, t + s.radius);
     };
     switch (s.kind) {
     case Shape::Circle: add(pose.apply(s.a)); break;
@@ -403,7 +402,13 @@ double projectedWidth(const Shape& s, const Pose& pose, Vec2 axis)
         for (int i = 0; i < s.count; ++i) add(pose.apply(s.verts[size_t(i)]));
         break;
     }
-    return (hi - lo) + 2.0 * s.radius;
+}
+
+double projectedWidth(const Shape& s, const Pose& pose, Vec2 axis)
+{
+    double lo = 1e300, hi = -1e300;
+    projectedRange(s, pose, axis, lo, hi);
+    return hi - lo;
 }
 
 double shapeArea(const Shape& s)

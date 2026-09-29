@@ -46,6 +46,8 @@ AreaMoment convexInBox(const Vec2* p, int n, Vec2 lo, Vec2 hi);
 AreaMoment shapeInBox(const Shape& s, const Pose& pose, Vec2 lo, Vec2 hi);
 // Width of the shape's projection onto an axis (unit vector).
 double projectedWidth(const Shape& s, const Pose& pose, Vec2 axis);
+// Widens [lo, hi] to include the shape's projection onto the axis.
+void projectedRange(const Shape& s, const Pose& pose, Vec2 axis, double& lo, double& hi);
 
 double shapeArea(const Shape& s);
 Aabb shapeBounds(const Shape& s, const Pose& pose);

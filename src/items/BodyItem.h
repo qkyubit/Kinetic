@@ -27,6 +27,8 @@ public:
     std::unique_ptr<ItemRuntime> createRuntime(const ItemDef& def, World& world,
                                                const RestoreState* restore) const override;
     void draw(const ItemDef& def, const DrawContext& ctx) const override;
+    // Charged bodies are point charges at their origin for the field overlay.
+    bool addField(const ItemDef& def, const Pose& pose, FieldKind k, Vec2 p, Vec2& inout) const override;
 
     // Outline drawn around the body (defaults to each shape's own outline).
     virtual bool outline(const ItemDef&, PointList&) const { return false; }

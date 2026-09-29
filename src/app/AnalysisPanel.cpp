@@ -121,6 +121,22 @@ AnalysisPanel::AnalysisPanel(Analysis* analysis, Document* doc, QWidget* parent)
     connect(showEnergy, &QCheckBox::toggled, this, update([](AnalysisOptions& op, bool v) { op.energy = v; }));
     el->addWidget(showEnergy);
     lay->addWidget(energy);
+
+    // Field overlay.
+    auto* fields = new QGroupBox(tr("Field overlay"), this);
+    auto* ff = new QFormLayout(fields);
+    ff->setRowWrapPolicy(QFormLayout::WrapLongRows);
+    auto* fieldMode = new QComboBox(fields);
+    fieldMode->addItems({tr("None"), tr("Gravity (m/s²)"), tr("Electric (V/m)"), tr("Magnetic (T)"), tr("Wind (m/s)")});
+    fieldMode->setCurrentIndex(o.field);
+    fieldMode->setToolTip(tr("Arrows show the field direction; opacity shows its strength (three decades)."));
+    connect(fieldMode, &QComboBox::currentIndexChanged, this, update([](AnalysisOptions& op, int i) { op.field = i; }));
+    ff->addRow(tr("Show"), fieldMode);
+    auto* fieldLines = new QCheckBox(tr("Field lines (electric, magnetic)"), fields);
+    fieldLines->setChecked(o.fieldLines);
+    connect(fieldLines, &QCheckBox::toggled, this, update([](AnalysisOptions& op, bool v) { op.fieldLines = v; }));
+    ff->addRow(fieldLines);
+    lay->addWidget(fields);
     lay->addStretch(1);
 }
 

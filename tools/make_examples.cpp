@@ -180,6 +180,177 @@ void stressTest(SceneBuilder& sb)
     view(sb, {0, 14}, 22);
 }
 
+void projectile(SceneBuilder& sb)
+{
+    ground(sb, 80.0);
+    sb.setWorld("airDrag", true);
+    // Same launch; only the drag coefficient differs.
+    const Vec2 v0{14, 14};
+    const ItemId a = sb.add("body.circle", {-18, 0.3}, {{"radius", 0.25}, {"density", 30.0}, {"velocity", v0},
+                                                       {"dragCoefficient", 0.0}, {"trail", true}, {"trailLength", 10.0},
+                                                       {"mask", int64_t(0xFFFD)},
+                                                       {"color", Color::fromRgb(0xe74c3c)}, {"trailColor", Color::fromRgb(0xe74c3c)}});
+    const ItemId b = sb.add("body.circle", {-18, 0.3}, {{"radius", 0.25}, {"density", 30.0}, {"velocity", v0},
+                                                       {"dragCoefficient", 1.0}, {"trail", true}, {"trailLength", 10.0},
+                                                       {"mask", int64_t(0xFFFD)}, {"layers", int64_t(2)},
+                                                       {"color", Color::fromRgb(0x3daee9)}, {"trailColor", Color::fromRgb(0x3daee9)}});
+    name(sb, a, "No drag (Cd = 0)");
+    name(sb, b, "With drag (Cd = 1)");
+    sb.set(a, "label", QStringLiteral("Cd = 0"));
+    sb.set(b, "label", QStringLiteral("Cd = 1"));
+    view(sb, {2, 5}, 19);
+}
+
+// Open-topped tank: floor and walls around a liquid region.
+ItemId tank(SceneBuilder& sb, Vec2 bottomCentre, double w, double depth, int liquid, const char* n)
+{
+    const double wall = 0.2;
+    sb.add("body.box", bottomCentre - Vec2{0, wall / 2}, {{"width", w + 2 * wall}, {"height", wall}, {"bodyType", int64_t(0)},
+                                                         {"color", Color::fromRgb(0x7f8c8d)}});
+    for (const double sx : {-1.0, 1.0})
+        sb.add("body.box", bottomCentre + Vec2{sx * (w / 2 + wall / 2), (depth + 0.6) / 2},
+               {{"width", wall}, {"height", depth + 0.6}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
+    const ItemId f = sb.add("fluid.region", bottomCentre + Vec2{0, depth / 2}, {{"width", w}, {"height", depth}, {"liquid", int64_t(liquid)}});
+    name(sb, f, n);
+    return f;
+}
+
+void buoyancy(SceneBuilder& sb)
+{
+    ground(sb, 60.0, -0.25);
+    sb.setWorld("sleep", false);
+    tank(sb, {-5, 0}, 7.0, 2.5, 1, "Water");
+    tank(sb, {4.5, 0}, 5.0, 2.5, 4, "Mercury");
+    // Materials: density ratio decides the draft.
+    struct Block {
+        const char* name;
+        double density;
+        uint32_t color;
+    };
+    const Block water[] = {{"Pine (500)", 500, 0xe0b46c}, {"Ice (917)", 917, 0xd6eaf8}, {"Rubber (1100)", 1100, 0x2d3436}, {"Oak (750)", 750, 0xa0522d}};
+    for (int i = 0; i < 4; ++i) {
+        const ItemId b = sb.add("body.box", {-7.6 + i * 1.7, 3.6}, {{"width", 1.0}, {"height", 0.8}, {"density", water[i].density},
+                                                                 {"color", Color::fromRgb(water[i].color)}});
+        name(sb, b, water[i].name);
+        sb.set(b, "label", QString::fromUtf8(water[i].name));
+    }
+    const Block mercury[] = {{"Steel (7850)", 7850, 0x95a5a6}, {"Lead (11340)", 11340, 0x636e72}, {"Gold (19300)", 19300, 0xf1c40f}};
+    for (int i = 0; i < 3; ++i) {
+        const ItemId b = sb.add("body.box", {3.0 + i * 1.5, 3.6}, {{"width", 0.9}, {"height", 0.7}, {"density", mercury[i].density},
+                                                                {"color", Color::fromRgb(mercury[i].color)}});
+        name(sb, b, mercury[i].name);
+        sb.set(b, "label", QString::fromUtf8(mercury[i].name));
+    }
+    const ItemId ball = sb.add("body.circle", {-2.5, 4.5}, {{"radius", 0.4}, {"density", 240.0}, {"color", Color::fromRgb(0xc8a165)}});
+    name(sb, ball, "Cork ball (240)");
+    view(sb, {-0.75, 2}, 46);
+}
+
+void opticsBench(SceneBuilder& sb)
+{
+    sb.setWorld("gravity", Vec2{0, 0});
+    // White beam into a dense-flint prism at 65° incidence, spectrum on a screen.
+    const ItemId white = sb.add("optics.source", {-9, 0.9}, {{"white", true}, {"mode", int64_t(0)}, {"samples", int64_t(16)},
+                                                            {"angle", 35.0 * kRadPerDeg}});
+    name(sb, white, "White light");
+    sb.add("optics.prism", {-5, 3.4}, {{"side", 1.8}, {"glass", int64_t(3)}});
+    sb.add("optics.absorber", {-2.0, 1.2}, {{"length", 2.5}, {"angle", -35.0 * kRadPerDeg}});
+    // Parallel beam focused by a glass lens (spherical aberration visible at the rim).
+    const ItemId beam = sb.add("optics.source", {-9, -2}, {{"mode", int64_t(1)}, {"rays", int64_t(11)}, {"beamWidth", 1.4}, {"wavelength", 532.0}});
+    name(sb, beam, "Green beam");
+    const ItemId lens = sb.add("optics.lens", {-5, -2}, {{"radius1", 1.6}, {"radius2", -1.6}, {"thickness", 0.3}, {"aperture", 1.8}});
+    name(sb, lens, "Biconvex lens");
+    // Red laser bouncing inside a glass block (total internal reflection) after a mirror.
+    const ItemId laser = sb.add("optics.source", {1.5, -3.8}, {{"mode", int64_t(0)}, {"wavelength", 650.0}, {"angle", 90.0 * kRadPerDeg}});
+    name(sb, laser, "Red laser");
+    sb.add("optics.mirror", {1.5, -1.5}, {{"angle", -45.0 * kRadPerDeg}, {"length", 0.8}});
+    sb.add("optics.block", {5.0, -1.5}, {{"width", 3.0}, {"height", 0.8}, {"angle", -12.0 * kRadPerDeg}});
+    // Point source at the focus of a concave mirror: a collimated beam.
+    const ItemId bulb = sb.add("optics.source", {5.0, 3.0}, {{"mode", int64_t(2)}, {"rays", int64_t(15)}, {"spread", 70.0 * kRadPerDeg},
+                                                          {"wavelength", 590.0}, {"angle", 180.0 * kRadPerDeg}});
+    name(sb, bulb, "Point source");
+    sb.add("optics.curvedMirror", {3.0, 3.0}, {{"radius", 4.0}, {"aperture", 2.6}});
+    view(sb, {-1.5, 0.5}, 48);
+}
+
+void orbit(SceneBuilder& sb)
+{
+    sb.setWorld("gravity", Vec2{0, 0});
+    sb.setWorld("mutualGravity", true);
+    sb.setWorld("gravitationalConstant", 1.0);
+    sb.setWorld("coulombSoftening", 0.01);
+    sb.setWorld("sleep", false);
+    const ItemId sun = sb.add("body.circle", {0, 0}, {{"radius", 0.4}, {"density", 3000.0}, {"color", Color::fromRgb(0xf1c40f)}});
+    const ItemId planet = sb.add("body.circle", {5, 0}, {{"radius", 0.12}, {"density", 500.0}, {"color", Color::fromRgb(0x3daee9)},
+                                                         {"trail", true}, {"trailLength", 30.0}});
+    name(sb, sun, "Star");
+    name(sb, planet, "Planet");
+    const double M = sb.get<double>(sun, "mass"), m = sb.get<double>(planet, "mass");
+    const double r = 5.0, mu = M + m;
+    // Slightly elliptical orbit, zero total momentum.
+    const double v = 0.85 * std::sqrt(mu / r);
+    sb.set(planet, "velocity", Vec2{0, v * M / (M + m)});
+    sb.set(sun, "velocity", Vec2{0, -v * m / (M + m)});
+    view(sb, {1, 0}, 65);
+}
+
+void chargedParticles(SceneBuilder& sb)
+{
+    sb.setWorld("gravity", Vec2{0, 0});
+    sb.setWorld("sleep", false);
+    // Light particles (31 g) with µC charges: r = m v / (|q| B) = 1.5 m.
+    const ItemId b = sb.add("field.magnetic", {-4, 0}, {{"width", 9.0}, {"height", 9.0}, {"strength", 3e4}});
+    name(sb, b, "Magnetic field");
+    struct P {
+        double q, speed;
+        Vec2 at;
+        uint32_t color;
+    };
+    const P ps[] = {{1e-6, 1.43, {-5.5, 0.5}, 0xe74c3c}, {-1e-6, 1.43, {-2.5, -0.5}, 0x3daee9}, {5e-7, 0.95, {-4, 3.2}, 0xf39c1f}};
+    for (const P& pp : ps) {
+        const ItemId p = sb.add("body.circle", pp.at, {{"radius", 0.1}, {"density", 1.0}, {"charge", pp.q},
+                                                      {"velocity", Vec2{pp.speed, 0}}, {"trail", true}, {"trailLength", 20.0},
+                                                      {"mask", int64_t(0)}, {"color", Color::fromRgb(pp.color)},
+                                                      {"trailColor", Color::fromRgb(pp.color)}});
+        name(sb, p, pp.q > 0 ? "Positive charge" : "Negative charge");
+    }
+    // A fixed charge and an opposite charge orbiting it.
+    const ItemId fixed = sb.add("body.circle", {9, 0}, {{"radius", 0.2}, {"charge", 1e-5}, {"bodyType", int64_t(0)}});
+    name(sb, fixed, "Fixed +10 µC");
+    const ItemId orbiter = sb.add("body.circle", {9, 1.5}, {{"radius", 0.1}, {"density", 1.0}, {"charge", -1e-6}, {"trail", true},
+                                                           {"trailLength", 20.0}});
+    name(sb, orbiter, "Orbiting −1 µC");
+    const double m = sb.get<double>(orbiter, "mass");
+    const double k = 8.9875517923e9 * 1e-5 * 1e-6;
+    sb.set(orbiter, "velocity", Vec2{std::sqrt(k / (m * 1.5)), 0});
+    view(sb, {2, 0}, 38);
+}
+
+void fields(SceneBuilder& sb)
+{
+    ground(sb, 60.0);
+    sb.add("body.wall", {-14, 5}, {{"height", 11.0}});
+    // A fan blowing balls up a ramp, a low-gravity zone and an explosion in a pile.
+    const ItemId fan = sb.add("field.wind", {-10, 1.5}, {{"speed", 25.0}, {"fan", true}, {"width", 7.0}, {"height", 3.0},
+                                                        {"angle", 20.0 * kRadPerDeg}});
+    name(sb, fan, "Fan");
+    for (int i = 0; i < 5; ++i) sb.add("body.circle", {-12.5 + i * 0.5, 0.3}, {{"radius", 0.2}, {"density", 30.0}});
+    const ItemId moon = sb.add("field.gravity", {-1, 4}, {{"width", 5.0}, {"height", 8.0}});
+    name(sb, moon, "Moon gravity");
+    for (int i = 0; i < 4; ++i) sb.add("body.box", {-2.2 + i * 0.8, 0.5 + (i % 2) * 2.0}, {{"width", 0.5}, {"height", 0.5}, {"velocity", Vec2{0, 3.0}}});
+    for (int j = 0; j < 5; ++j)
+        for (int i = 0; i < 5 - j; ++i) sb.add("body.box", {5.0 + i * 0.62 + j * 0.31, 0.3 + j * 0.6}, {{"width", 0.6}, {"height", 0.6}});
+    const ItemId boom = sb.add("field.explosion", {6.25, -0.1}, {{"time", 2.0}, {"radius", 4.0}, {"impulse", 900.0}});
+    name(sb, boom, "Explosion at 2 s");
+    // Two bar magnets snapping together.
+    sb.add("body.magnet", {10.5, 0.2}, {{"staticFriction", 0.2}});
+    sb.add("body.magnet", {12.0, 0.2}, {{"angle", 180.0 * kRadPerDeg}});
+    const ItemId rocket = sb.add("body.box", {-6, 6}, {{"width", 0.4}, {"height", 1.2}, {"density", 200.0}, {"color", Color::fromRgb(0xdfe6e9)}});
+    name(sb, rocket, "Rocket");
+    sb.connect("mechanism.thruster", rocket, {-6, 5.4}, 0, {-6, 8}, {{"thrust", 1200.0}});
+    view(sb, {-0.5, 4}, 28);
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -194,12 +365,18 @@ int main(int argc, char** argv)
     const std::vector<std::pair<const char*, std::function<void(SceneBuilder&)>>> scenes = {
         {"01_pendulum", pendulum},
         {"02_double_pendulum", doublePendulum},
+        {"03_projectile_with_and_without_drag", projectile},
         {"05_newtons_cradle", newtonsCradle},
         {"06_spring_mass_system", springMass},
+        {"07_buoyancy_comparison", buoyancy},
+        {"08_lens_and_prism_optics", opticsBench},
+        {"09_two_body_orbit", orbit},
+        {"10_charged_particles", chargedParticles},
         {"11_crank_slider", crankSlider},
         {"12_atwood_machine", atwood},
         {"13_gear_train", gears},
         {"14_conveyors_and_trampoline", conveyors},
+        {"15_fields_fans_and_explosions", fields},
         {"99_stress_test_5000_bodies", stressTest},
     };
     for (const auto& [file, build] : scenes) {

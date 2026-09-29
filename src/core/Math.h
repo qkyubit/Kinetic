@@ -12,6 +12,7 @@ namespace kn {
 constexpr double kPi = 3.14159265358979323846;
 constexpr double kTwoPi = 2.0 * kPi;
 constexpr double kDegPerRad = 180.0 / kPi;
+constexpr double kRadPerDeg = kPi / 180.0;
 
 struct Vec2 {
     double x = 0.0;

@@ -1,0 +1,219 @@
+{
+    "format": "kinetic-scene",
+    "items": [
+        {
+            "id": 1,
+            "name": "White light",
+            "props": {
+                "angle": 0.6108652381980153,
+                "beamWidth": 0.4,
+                "color": "#2d3436ff",
+                "intensity": 1,
+                "mode": "Laser",
+                "position": [
+                    -9,
+                    0.9
+                ],
+                "rays": 7,
+                "samples": 16,
+                "spread": 0.6981317007977318,
+                "wavelength": 532,
+                "white": true
+            },
+            "type": "optics.source"
+        },
+        {
+            "id": 2,
+            "name": "Prism 2",
+            "props": {
+                "angle": 0,
+                "apexAngle": 1.0471975511965976,
+                "cauchyA": 1.5,
+                "cauchyB": 0.004,
+                "color": "#a29bfe46",
+                "glass": "Dense flint (SF11)",
+                "position": [
+                    -5,
+                    3.4
+                ],
+                "side": 1.8
+            },
+            "type": "optics.prism"
+        },
+        {
+            "id": 3,
+            "name": "Screen 3",
+            "props": {
+                "angle": -0.6108652381980153,
+                "color": "#2d3436ff",
+                "length": 2.5,
+                "position": [
+                    -2,
+                    1.2
+                ]
+            },
+            "type": "optics.absorber"
+        },
+        {
+            "id": 4,
+            "name": "Green beam",
+            "props": {
+                "angle": 0,
+                "beamWidth": 1.4,
+                "color": "#2d3436ff",
+                "intensity": 1,
+                "mode": "Parallel beam",
+                "position": [
+                    -9,
+                    -2
+                ],
+                "rays": 11,
+                "samples": 12,
+                "spread": 0.6981317007977318,
+                "wavelength": 532,
+                "white": false
+            },
+            "type": "optics.source"
+        },
+        {
+            "id": 5,
+            "name": "Biconvex lens",
+            "props": {
+                "angle": 0,
+                "aperture": 1.8,
+                "cauchyA": 1.5,
+                "cauchyB": 0.004,
+                "color": "#74b9ff46",
+                "glass": "Crown glass (N-BK7)",
+                "position": [
+                    -5,
+                    -2
+                ],
+                "radius1": 1.6,
+                "radius2": -1.6,
+                "thickness": 0.3
+            },
+            "type": "optics.lens"
+        },
+        {
+            "id": 6,
+            "name": "Red laser",
+            "props": {
+                "angle": 1.5707963267948966,
+                "beamWidth": 0.4,
+                "color": "#2d3436ff",
+                "intensity": 1,
+                "mode": "Laser",
+                "position": [
+                    1.5,
+                    -3.8
+                ],
+                "rays": 7,
+                "samples": 12,
+                "spread": 0.6981317007977318,
+                "wavelength": 650,
+                "white": false
+            },
+            "type": "optics.source"
+        },
+        {
+            "id": 7,
+            "name": "Flat mirror 7",
+            "props": {
+                "angle": -0.7853981633974483,
+                "color": "#95a5a6ff",
+                "length": 0.8,
+                "position": [
+                    1.5,
+                    -1.5
+                ],
+                "reflectance": 1
+            },
+            "type": "optics.mirror"
+        },
+        {
+            "id": 8,
+            "name": "Glass block 8",
+            "props": {
+                "angle": -0.20943951023931956,
+                "cauchyA": 1.5,
+                "cauchyB": 0.004,
+                "color": "#81ecec46",
+                "glass": "Crown glass (N-BK7)",
+                "height": 0.8,
+                "position": [
+                    5,
+                    -1.5
+                ],
+                "width": 3
+            },
+            "type": "optics.block"
+        },
+        {
+            "id": 9,
+            "name": "Point source",
+            "props": {
+                "angle": 3.141592653589793,
+                "beamWidth": 0.4,
+                "color": "#2d3436ff",
+                "intensity": 1,
+                "mode": "Point source",
+                "position": [
+                    5,
+                    3
+                ],
+                "rays": 15,
+                "samples": 12,
+                "spread": 1.2217304763960306,
+                "wavelength": 590,
+                "white": false
+            },
+            "type": "optics.source"
+        },
+        {
+            "id": 10,
+            "name": "Curved mirror 10",
+            "props": {
+                "angle": 0,
+                "aperture": 2.6,
+                "color": "#95a5a6ff",
+                "position": [
+                    3,
+                    3
+                ],
+                "radius": 4,
+                "reflectance": 1
+            },
+            "type": "optics.curvedMirror"
+        }
+    ],
+    "schemaVersion": 2,
+    "view": {
+        "center": [
+            -1.5,
+            0.5
+        ],
+        "pixelsPerMetre": 48
+    },
+    "world": {
+        "airDensity": 1.225,
+        "airDrag": false,
+        "contactDamping": 10,
+        "contactHertz": 30,
+        "continuous": true,
+        "coulombSoftening": 0.05,
+        "gravitationalConstant": 6.674e-11,
+        "gravity": [
+            0,
+            0
+        ],
+        "jointDamping": 2,
+        "jointHertz": 60,
+        "keyframeInterval": 240,
+        "mutualGravity": false,
+        "physicsHz": 120,
+        "restitutionThreshold": 1,
+        "sleep": true,
+        "substeps": 4
+    }
+}

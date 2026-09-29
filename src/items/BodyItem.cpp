@@ -436,7 +436,25 @@ void BodyItemType::draw(const ItemDef& def, const DrawContext& ctx) const
         ctx.batch.polyline(Layer::Body, world.data(), int(world.size()), true, w, edge);
     }
     if (!def.s(idx_.label).isEmpty()) ctx.batch.label(ctx.pose.p, def.s(idx_.label), ctx.theme.text);
+    if (const double q = def.d(idx_.charge); q != 0.0) {
+        // Charge sign badge.
+        const Color c = q > 0 ? Color::fromRgb(0xc0392b) : Color::fromRgb(0x2e86de);
+        const double r = ctx.px(7);
+        ctx.batch.disc(Layer::Front, ctx.pose.p, r, Color{255, 255, 255, 230}, c, 1.5f);
+        ctx.batch.line(Layer::Front, ctx.pose.p - Vec2{r * 0.6, 0}, ctx.pose.p + Vec2{r * 0.6, 0}, 2.0f, c);
+        if (q > 0) ctx.batch.line(Layer::Front, ctx.pose.p - Vec2{0, r * 0.6}, ctx.pose.p + Vec2{0, r * 0.6}, 2.0f, c);
+    }
     drawExtras(def, ctx);
+}
+
+bool BodyItemType::addField(const ItemDef& def, const Pose& pose, FieldKind k, Vec2 p, Vec2& inout) const
+{
+    const double q = def.d(idx_.charge);
+    if (k != FieldKind::Electric || q == 0.0) return false;
+    const Vec2 r = p - pose.p;
+    const double d2 = dot(r, r) + 1e-4;
+    inout += r * (8.9875517923e9 * q / (d2 * std::sqrt(d2)));
+    return false;
 }
 
 } // namespace kn

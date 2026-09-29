@@ -33,6 +33,8 @@ struct AnalysisOptions {
     double pxPerMps2 = 6.0;      // acceleration arrows
     bool trails = true;          // global switch; bodies opt in with their "Show trail" property
     bool energy = false;         // energy HUD
+    int field = 0;               // FieldOverlay::Mode
+    bool fieldLines = true;      // electric/magnetic field lines
 
     void load();
     void save() const;

@@ -20,6 +20,13 @@ class RenderBatch;
 struct DrawContext;
 struct RestoreState;
 
+namespace optics {
+struct Scene;
+}
+
+// Fields a scene can display as a vector overlay.
+enum class FieldKind : uint8_t { Gravity, Electric, Magnetic, Wind };
+
 enum class ItemKind : uint8_t { World, Group, Body, Connector, Field, Fluid, Optics, Tool, Equation, Constant };
 constexpr uint32_t kindBit(ItemKind k) { return 1u << uint32_t(k); }
 
@@ -166,6 +173,15 @@ public:
     // Returns nullptr for items with no physics (groups, optics, constants...).
     virtual std::unique_ptr<ItemRuntime> createRuntime(const ItemDef& def, World& world,
                                                        const RestoreState* restore) const;
+
+    // --- fields and optics (UI side) -----------------------------------------------------
+    // Adds this item's contribution to field `k` at world point p (gravity:
+    // m/s², electric: V/m, magnetic: in-plane T, wind: m/s). `pose` is the
+    // item's current pose. Gravity zones that cancel the world's gravity at p
+    // return true (the caller subtracts the world gravity once per such item).
+    virtual bool addField(const ItemDef&, const Pose&, FieldKind, Vec2 /*p*/, Vec2& /*inout*/) const { return false; }
+    // Optical elements and light sources add their surfaces and rays.
+    virtual void addOptics(const ItemDef&, const Pose&, optics::Scene&) const {}
 
     // --- rendering -------------------------------------------------------------------
     virtual void draw(const ItemDef& def, const DrawContext& ctx) const;

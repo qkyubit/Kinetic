@@ -204,3 +204,66 @@ its latest logged form, with initial conditions for items present at step 0.
 
 **Event times** are `World::time()`, a sum of single-precision step lengths
 (matching Box2D), so they differ from `step × dt` by up to ~1e-7 s per second.
+
+## Fields, fluids and optics (M4)
+
+**Depth convention.** The world is 2D with a nominal depth of 1 m: body mass is
+density × area × 1 m (Box2D's convention), so buoyancy (ρ_f A_sub g), drag
+(½ ρ Cd W v², W a silhouette width) and charges/moments act per metre of depth
+and all balance consistently. Waterlines match Archimedes to 0.12 % (test).
+
+**Field forces act on awake bodies only.** Like gravity, a field does not keep
+a resting body awake; field items call `World::wakeAll()` when they are
+created or edited so sleeping bodies notice them. Scenes with free charges or
+orbits turn sleeping off.
+
+**Pair forces live in World, not in items**: Coulomb forces between charged
+bodies, dipole–dipole forces and torques between magnets, and optional mutual
+gravity (world setting, gravitational constant adjustable so kilogram-scale
+orbits are visible). They are applied equal and opposite, evaluated at the
+predicted positions (as springs are), and their potentials are added to the
+energy readout. All three use the world's softening length ε (r² → r² + ε²).
+Mutual gravity is O(n²) over all dynamic bodies and is off by default.
+
+**Region fields** (gravity zones, wind/fans, uniform E and B) test a body's
+centre of mass against the region. Their potential energy is only counted for
+whole-world regions; a region boundary would make it discontinuous, and fans
+and thrusters are not conservative, so the drift readout is meaningless in such
+scenes.
+
+**Uniform magnetic fields rotate velocities exactly.** An explicit q v × B force
+with sub-stepping spirals outwards; applying the force that rotates the
+velocity by −qBΔt/m over the step keeps |v| constant to 1e-6 (test: cyclotron
+radius within 0.01 %). B is perpendicular to the plane, so it exerts no torque
+on in-plane magnets.
+
+**Explicit drag is clamped** so that it can at most stop a body within one step
+(light bodies in thick liquids or strong wind would otherwise reverse).
+
+**Fluids are hydrostatic regions, not SPH.** A liquid is an axis-aligned
+rectangle whose top edge is the free surface (gravity assumed to point down).
+Buoyancy uses the exact submerged area and its centroid (polygons exactly;
+circles exactly while between the side walls, 64-gons otherwise); drag is
+k μ W v + ½ ρ Cd W |v| v with k = 6 and W scaled by the submerged fraction,
+plus a matching rotational term. There are no waves, no displacement of the
+surface and no flow. A particle (SPH) liquid was left out: it would cost the
+5,000-body frame budget and cannot give the exact waterlines the acceptance
+tests require.
+
+**Optics are traced on the UI thread from the document** every frame (they do
+not interact with rigid bodies, which are transparent to light). The tracer
+handles segments and exact circular arcs, so spherical lenses have no
+faceting error (paraxial back focal distance within 0.01 % of the thick-lens
+lensmaker equation). Refracting elements must not overlap: the tracer tracks
+which element a ray is inside by the boundary it crossed. Rays start in air.
+Fresnel reflection (unpolarised average of s and p) splits each refraction;
+branches below 1 % intensity, deeper than 64 interactions or beyond 60,000
+segments in total are dropped. Glasses use Schott/Malitson Sellmeier
+coefficients (N-BK7, F2, SF11, fused silica, diamond) or Cauchy fits.
+
+**White light** is sampled at N evenly spaced wavelengths in 400–700 nm (default
+12). Each sample's colour is the CIE 1931 (multi-lobe fit) hue in sRGB,
+weighted per channel so the samples add back to white. On dark themes rays use
+the additive pipeline, so undispersed white light looks white and a spectrum
+fans out; additive light is invisible on a light canvas, so light themes draw
+each ray in its own hue with normal blending.
