@@ -1,0 +1,166 @@
+// The physics world: a Box2D v3 world plus the item runtimes that contribute
+// forces, constraints and fields. Owned and used by the physics thread only.
+#pragma once
+
+#include "Runtime.h"
+
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+namespace kn {
+
+struct WorldSettings {
+    Vec2 gravity{0.0, -9.81};
+    int hz = 120;
+    int substeps = 4;
+    bool sleep = true;
+    bool continuous = true;
+    double airDensity = 1.225;
+    double jointHertz = 60.0;
+    double jointDamping = 2.0;
+    double coulombSoftening = 0.05;
+    int keyframeInterval = 240;
+
+    static WorldSettings fromDef(const ItemDef& worldDef);
+};
+
+struct BodyRec {
+    ItemId item = 0;
+    b2BodyId id = b2_nullBodyId;
+    bool alive = false;
+    uint8_t type = 2; // b2BodyType
+    float mass = 0, invMass = 0, inertia = 0; // inertia about the centre of mass
+    float gravityScale = 1;
+    float linearDamping = 0, angularDamping = 0;
+    float charge = 0;           // coulombs
+    b2Vec2 magMoment{0, 0};     // local-frame magnetic dipole moment, A·m²
+    float dragCoefficient = 1.0f;
+    float muStatic = 0.6f, muKinetic = 0.6f;
+    bool sliding = false;
+    bool refreshForces = true;
+    float tangentSpeed = 0.0f; // conveyor surface speed of this body's shapes
+    std::vector<Shape> shapes;     // local geometry, used by fluids/wind
+    std::vector<b2ShapeId> shapeIds;
+    // State refreshed every step.
+    b2Vec2 origin{0, 0};
+    b2Rot rot{1, 0};
+    b2Vec2 com{0, 0};
+    b2Vec2 v{0, 0}, prevV{0, 0};
+    float w = 0, prevW = 0;
+    b2Vec2 a{0, 0};
+    float alpha = 0;
+    bool awake = true;
+    ForceEntry forces[kMaxForceEntries];
+    int forceCount = 0;
+    // Breakdown from the last awake step; shown while the body sleeps.
+    ForceEntry lastForces[kMaxForceEntries];
+    int lastForceCount = 0;
+
+    Pose pose() const { return Pose{{origin.x, origin.y}, rot.c, rot.s}; }
+};
+
+class World {
+public:
+    explicit World(const ItemDef& worldDef);
+    ~World();
+    World(const World&) = delete;
+    World& operator=(const World&) = delete;
+
+    // --- structure (not real-time; may allocate) ------------------------------
+    // Builds all items in order: bodies first, then everything else.
+    void build(const std::vector<ItemDefPtr>& defs, const RestoreState* restore);
+    void addItem(ItemDefPtr def, const RestoreState* restore = nullptr);
+    void removeItem(ItemId id);
+    // Applies an edited definition. Rebuilds the runtime (and its dependents)
+    // when it cannot apply the change live.
+    void updateItem(ItemDefPtr def, uint64_t changed);
+    void setWorldDef(const ItemDef& worldDef);
+    void capture(RestoreState& out) const;
+    const std::vector<ItemDefPtr>& defs() const { return defs_; }
+    const ItemDef* def(ItemId id) const;
+    ItemRuntime* runtime(ItemId id) const;
+
+    // --- stepping (real-time; must not allocate) ------------------------------------
+    void step();
+    void writeSnapshot(Snapshot& s) const;
+    EnergySnap energy() const;
+    void resetEnergyBaseline() { baselineValid_ = false; }
+    double energyBaseline() const { return baseline_; }
+    bool energyBaselineValid() const { return baselineValid_; }
+    void setEnergyBaseline(double v, bool valid)
+    {
+        baseline_ = v;
+        baselineValid_ = valid;
+    }
+
+    // --- API for runtimes -------------------------------------------------------------
+    b2WorldId id() const { return id_; }
+    b2BodyId groundBody() const { return ground_; }
+    const WorldSettings& settings() const { return settings_; }
+    float dt() const { return 1.0f / float(settings_.hz); }
+    double time() const { return time_; }
+    uint64_t stepIndex() const { return step_; }
+    void setClock(uint64_t step, double time) { step_ = step; time_ = time; }
+    uint64_t structureVersion() const { return structureVersion_; }
+
+    int registerBody(ItemId item, b2BodyId id);
+    void unregisterBody(int index);
+    int bodyIndex(ItemId item) const;
+    BodyRec& body(int index) { return bodies_[size_t(index)]; }
+    const BodyRec& body(int index) const { return bodies_[size_t(index)]; }
+    int bodyCapacity() const { return int(bodies_.size()); }
+    // Refreshes cached mass properties after shapes/density change.
+    void refreshMass(int index);
+    // b2BodyId for an item id (ground body for 0 / unknown).
+    b2BodyId bodyIdOr(ItemId item) const;
+
+    // Applies a force at a world point and records it under `source`.
+    void addForce(int index, ForceSource source, b2Vec2 force, b2Vec2 point, bool wake = true);
+    void addForceAtCenter(int index, ForceSource source, b2Vec2 force, bool wake = true);
+    void addTorque(int index, ForceSource source, float torque, bool wake = true);
+    // Records a force that Box2D applies itself (contacts, joints, gravity).
+    void record(int index, ForceSource source, b2Vec2 force, float torque);
+
+    // Named constants (Constant items) for equation-driven items.
+    void setConstant(const QString& name, double value);
+    const std::vector<std::pair<QString, double>>& constants() const { return constants_; }
+    uint64_t constantsVersion() const { return constantsVersion_; }
+
+private:
+    struct Entry {
+        ItemDefPtr def;
+        std::unique_ptr<ItemRuntime> rt;
+    };
+
+    void createRuntime(Entry& e, const RestoreState* restore);
+    void destroyRuntime(Entry& e);
+    bool referencesSatisfied(const ItemDef& d) const;
+    void createDormant(const RestoreState* restore);
+    std::vector<size_t> dependentsOf(ItemId id) const;
+    void reindex();
+    void computeContactForces();
+    void updateFrictionState(BodyRec& b);
+    void refreshBodyState(BodyRec& b);
+    void applySettings();
+
+    WorldSettings settings_;
+    b2WorldId id_ = b2_nullWorldId;
+    b2BodyId ground_ = b2_nullBodyId;
+    std::vector<Entry> items_;
+    std::vector<ItemDefPtr> defs_;
+    std::unordered_map<ItemId, size_t> itemIndex_;
+    std::vector<BodyRec> bodies_;
+    std::vector<int> freeBodies_;
+    std::unordered_map<ItemId, int> bodyIndex_;
+    std::vector<b2ContactData> contactScratch_;
+    std::vector<std::pair<QString, double>> constants_;
+    uint64_t constantsVersion_ = 0;
+    uint64_t step_ = 0;
+    double time_ = 0.0;
+    uint64_t structureVersion_ = 1;
+    mutable bool baselineValid_ = false;
+    mutable double baseline_ = 0.0;
+};
+
+} // namespace kn
