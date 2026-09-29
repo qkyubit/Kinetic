@@ -41,6 +41,8 @@ public:
     void setRecording(bool on);
     ReplayData exportReplay();
     void loadReplay(const ReplayData& r);
+    // Moves live bodies (dragging while simulating); the document is untouched.
+    void setBodyStates(const std::vector<std::pair<ItemId, Pose>>& poses);
 
 signals:
     void snapshotUpdated();

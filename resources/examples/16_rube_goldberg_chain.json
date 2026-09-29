@@ -53,24 +53,24 @@
                 "bullet": false,
                 "charge": 0,
                 "color": "#c0392bff",
-                "density": 7850,
+                "density": 700,
                 "dragCoefficient": 1,
                 "fixedRotation": false,
                 "gravityScale": 1,
-                "kineticFriction": 0.57,
+                "kineticFriction": 0.3,
                 "label": "",
                 "layers": 1,
                 "linearDamping": 0,
                 "mask": 65535,
-                "material": "Steel",
+                "material": "Wood",
                 "position": [
-                    -15.5,
-                    8.05
+                    -14.964213562373097,
+                    2.135786437626905
                 ],
                 "radius": 0.3,
-                "restitution": 0.6,
+                "restitution": 0.45,
                 "showForces": false,
-                "staticFriction": 0.74,
+                "staticFriction": 0.5,
                 "trail": false,
                 "trailColor": "#e67e22ff",
                 "trailFade": true,
@@ -91,14 +91,14 @@
                     0
                 ],
                 "anchorB": [
-                    -13.5,
-                    8.05
+                    -13.55,
+                    3.55
                 ],
                 "bodyA": 2,
                 "bodyB": 0,
                 "collideConnected": false,
                 "color": "#7f8c8dff",
-                "length": 2
+                "length": 2.0000000000000004
             },
             "type": "connector.rod"
         },
@@ -125,8 +125,8 @@
                 "mask": 65535,
                 "material": "Wood",
                 "position": [
-                    -13.2,
-                    5.6000000000000005
+                    -13.399999999999999,
+                    1.0999999999999999
                 ],
                 "restitution": 0.45,
                 "showForces": false,
@@ -139,7 +139,7 @@
                     0,
                     0
                 ],
-                "width": 1.200000000000001
+                "width": 1.5999999999999996
             },
             "type": "body.box"
         },
@@ -147,7 +147,7 @@
             "id": 5,
             "name": "Box 5",
             "props": {
-                "angle": -0.7942474899137061,
+                "angle": -0.38050637711236485,
                 "angularDamping": 0,
                 "angularVelocity": 0,
                 "bodyType": "Static",
@@ -166,8 +166,8 @@
                 "mask": 65535,
                 "material": "Wood",
                 "position": [
-                    -9.871333643151479,
-                    2.779917824272233
+                    -11.13713906763541,
+                    0.507152330911474
                 ],
                 "restitution": 0.45,
                 "showForces": false,
@@ -180,7 +180,7 @@
                     0,
                     0
                 ],
-                "width": 7.990619500389191
+                "width": 3.2310988842807022
             },
             "type": "body.box"
         },
@@ -195,24 +195,24 @@
                 "bullet": false,
                 "charge": 0,
                 "color": "#3daee9ff",
-                "density": 7850,
+                "density": 700,
                 "dragCoefficient": 1,
                 "fixedRotation": false,
                 "gravityScale": 1,
-                "kineticFriction": 0.57,
+                "kineticFriction": 0.3,
                 "label": "",
                 "layers": 1,
                 "linearDamping": 0,
                 "mask": 65535,
-                "material": "Steel",
+                "material": "Wood",
                 "position": [
-                    -12.95,
-                    5.95
+                    -13,
+                    1.45
                 ],
                 "radius": 0.25,
-                "restitution": 0.6,
+                "restitution": 0.45,
                 "showForces": false,
-                "staticFriction": 0.74,
+                "staticFriction": 0.5,
                 "trail": true,
                 "trailColor": "#e67e22ff",
                 "trailFade": true,
@@ -226,33 +226,33 @@
         },
         {
             "id": 7,
-            "name": "Box 7",
+            "name": "Pusher block",
             "props": {
                 "angle": 0,
                 "angularDamping": 0,
                 "angularVelocity": 0,
-                "bodyType": "Static",
+                "bodyType": "Dynamic",
                 "bullet": false,
                 "charge": 0,
-                "color": "#7f8c8dff",
-                "density": 700,
+                "color": "#95a5a6ff",
+                "density": 2400,
                 "dragCoefficient": 1,
                 "fixedRotation": false,
                 "gravityScale": 1,
-                "height": 0.35,
-                "kineticFriction": 0.3,
+                "height": 0.5,
+                "kineticFriction": 0.5,
                 "label": "",
                 "layers": 1,
                 "linearDamping": 0,
                 "mask": 65535,
-                "material": "Wood",
+                "material": "Concrete",
                 "position": [
-                    -5.37,
-                    0.175
+                    -6.2,
+                    0.25
                 ],
-                "restitution": 0.45,
+                "restitution": 0.2,
                 "showForces": false,
-                "staticFriction": 0.5,
+                "staticFriction": 0.62,
                 "trail": false,
                 "trailColor": "#e67e22ff",
                 "trailFade": true,
@@ -261,7 +261,7 @@
                     0,
                     0
                 ],
-                "width": 0.1
+                "width": 0.6
             },
             "type": "body.box"
         },
@@ -275,7 +275,7 @@
                 "bodyType": "Dynamic",
                 "bullet": false,
                 "charge": 0,
-                "color": "#2d3436ff",
+                "color": "#f39c1fff",
                 "density": 600,
                 "dragCoefficient": 1,
                 "fixedRotation": false,
@@ -288,7 +288,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -5.5,
+                    -5.8,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -329,7 +329,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -5,
+                    -5.3,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -357,7 +357,7 @@
                 "bodyType": "Dynamic",
                 "bullet": false,
                 "charge": 0,
-                "color": "#2d3436ff",
+                "color": "#f39c1fff",
                 "density": 600,
                 "dragCoefficient": 1,
                 "fixedRotation": false,
@@ -370,7 +370,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -4.5,
+                    -4.8,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -411,7 +411,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -4,
+                    -4.3,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -439,7 +439,7 @@
                 "bodyType": "Dynamic",
                 "bullet": false,
                 "charge": 0,
-                "color": "#2d3436ff",
+                "color": "#f39c1fff",
                 "density": 600,
                 "dragCoefficient": 1,
                 "fixedRotation": false,
@@ -452,7 +452,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -3.5,
+                    -3.8,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -493,7 +493,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -3,
+                    -3.3,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -521,7 +521,7 @@
                 "bodyType": "Dynamic",
                 "bullet": false,
                 "charge": 0,
-                "color": "#2d3436ff",
+                "color": "#f39c1fff",
                 "density": 600,
                 "dragCoefficient": 1,
                 "fixedRotation": false,
@@ -534,7 +534,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -2.5,
+                    -2.8,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -575,7 +575,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -2,
+                    -2.3,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -603,7 +603,7 @@
                 "bodyType": "Dynamic",
                 "bullet": false,
                 "charge": 0,
-                "color": "#2d3436ff",
+                "color": "#f39c1fff",
                 "density": 600,
                 "dragCoefficient": 1,
                 "fixedRotation": false,
@@ -616,7 +616,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -1.5,
+                    -1.7999999999999998,
                     0.4
                 ],
                 "restitution": 0.45,
@@ -656,7 +656,7 @@
                 "mask": 65535,
                 "material": "Custom",
                 "position": [
-                    -0.85,
+                    -1.15,
                     0.2
                 ],
                 "radius": 0.2,
@@ -818,7 +818,7 @@
     "view": {
         "center": [
             -1.5,
-            2.5
+            0.5
         ],
         "pixelsPerMetre": 26
     },

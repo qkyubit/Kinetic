@@ -364,36 +364,41 @@ ItemId ramp(SceneBuilder& sb, Vec2 a, Vec2 b, double thickness = 0.2, uint32_t c
 void rubeGoldberg(SceneBuilder& sb)
 {
     sb.setWorld("sleep", false);
+    const Color grey = Color::fromRgb(0x7f8c8d);
     // Shelf (top at y = 0) from x = -16 to 1.6, then a ramp down into a pit.
-    sb.add("body.box", {-7.2, -0.5}, {{"width", 17.6}, {"height", 1.0}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
-    // 1. A pendulum hammer, released from horizontal...
-    const Vec2 pivot{-13.5, 8.05};
-    const ItemId hammer = sb.add("body.circle", {-15.5, 8.05}, {{"radius", 0.3}, {"material", int64_t(1)}, {"color", Color::fromRgb(0xc0392b)}});
+    sb.add("body.box", {-7.2, -0.5}, {{"width", 17.6}, {"height", 1.0}, {"bodyType", int64_t(0)}, {"color", grey}});
+    // 1. A wooden hammer on a rod, released from 45°...
+    const Vec2 pivot{-13.55, 3.55};
+    const Vec2 start = pivot + Vec2{-std::sin(kPi / 4), -std::cos(kPi / 4)} * 2.0;
+    const ItemId hammer = sb.add("body.circle", start, {{"radius", 0.3}, {"material", int64_t(2)}, {"color", Color::fromRgb(0xc0392b)}});
     name(sb, hammer, "Hammer");
-    sb.connect("connector.rod", hammer, {-15.5, 8.05}, 0, pivot);
-    // 2. ...knocks a ball off a ledge and down the first ramp...
-    ramp(sb, {-13.8, 5.7}, {-12.6, 5.7});
-    ramp(sb, {-12.6, 5.7}, {-7.0, 0.0});
-    const ItemId ball = sb.add("body.circle", {-12.95, 5.95}, {{"radius", 0.25}, {"material", int64_t(1)}, {"trail", true}});
+    sb.connect("connector.rod", hammer, start, 0, pivot);
+    // 2. ...knocks a wooden ball off a ledge and down a short ramp...
+    ramp(sb, {-14.2, 1.2}, {-12.6, 1.2});
+    ramp(sb, {-12.6, 1.2}, {-9.6, 0.0});
+    const ItemId ball = sb.add("body.circle", {-13.0, 1.45}, {{"radius", 0.25}, {"material", int64_t(2)}, {"trail", true}});
     name(sb, ball, "Ball");
-    // 3. ...into a row of dominoes (a curb stops the ball at the first one)...
-    sb.add("body.box", {-5.37, 0.175}, {{"width", 0.1}, {"height", 0.35}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
+    // 3. ...into a heavy concrete block: the ball bounces back, the block
+    //    slides on and tips the first of a row of dominoes...
+    const ItemId block = sb.add("body.box", {-6.2, 0.25}, {{"width", 0.6}, {"height", 0.5}, {"material", int64_t(6)},
+                                                          {"color", Color::fromRgb(0x95a5a6)}});
+    name(sb, block, "Pusher block");
     for (int i = 0; i < 9; ++i) {
-        const ItemId d = sb.add("body.box", {-5.5 + i * 0.5, 0.4}, {{"width", 0.12}, {"height", 0.8}, {"density", 600.0},
-                                                               {"color", Color::fromRgb(i % 2 ? 0xf5f6fa : 0x2d3436)}});
+        const ItemId d = sb.add("body.box", {-5.8 + i * 0.5, 0.4}, {{"width", 0.12}, {"height", 0.8}, {"density", 600.0},
+                                                               {"color", Color::fromRgb(i % 2 ? 0xf5f6fa : 0xf39c1f)}});
         name(sb, d, "Domino");
     }
-    // 4. ...the last of which nudges a second ball down the ramp into the pit...
-    const ItemId ball2 = sb.add("body.circle", {-0.85, 0.2}, {{"radius", 0.2}, {"density", 300.0}, {"color", Color::fromRgb(0x27ae60)},
-                                                            {"trail", true}, {"trailColor", Color::fromRgb(0x27ae60)}});
+    // 4. ...the last of which nudges a ball down the ramp into the pit...
+    const ItemId ball2 = sb.add("body.circle", {-1.15, 0.2}, {{"radius", 0.2}, {"density", 300.0}, {"color", Color::fromRgb(0x27ae60)},
+                                                             {"trail", true}, {"trailColor", Color::fromRgb(0x27ae60)}});
     name(sb, ball2, "Green ball");
     ramp(sb, {1.6, 0.0}, {5.0, -2.5});
-    sb.add("body.box", {9.0, -3.0}, {{"width", 8.0}, {"height", 1.0}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
-    sb.add("body.box", {13.1, -1.9}, {{"width", 0.2}, {"height", 1.2}, {"bodyType", int64_t(0)}, {"color", Color::fromRgb(0x7f8c8d)}});
+    sb.add("body.box", {9.0, -3.0}, {{"width", 8.0}, {"height", 1.0}, {"bodyType", int64_t(0)}, {"color", grey}});
+    sb.add("body.box", {13.1, -1.9}, {{"width", 0.2}, {"height", 1.2}, {"bodyType", int64_t(0)}, {"color", grey}});
     // 5. ...and through the finish gate.
     const ItemId gate = sb.add("tool.trigger", {10.5, -1.8}, {{"width", 1.0}, {"height", 1.0}, {"label", QStringLiteral("Finish")}});
     name(sb, gate, "Finish");
-    view(sb, {-1.5, 2.5}, 26);
+    view(sb, {-1.5, 0.5}, 26);
 }
 
 void equations(SceneBuilder& sb)

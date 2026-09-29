@@ -2,6 +2,7 @@
 // physics thread.
 #include "app/GraphPanel.h"
 #include "app/TriggerLogPanel.h"
+#include "app/Viewport.h"
 #include "core/SceneBuilder.h"
 
 #include <QFile>
@@ -66,6 +67,41 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(sim.snapshot().step == 120, 5000);
         QTest::qWait(50);
         QCOMPARE(log.rowCount(), 2);
+        sim.reset();
+    }
+
+    void dragLiveBodyMovesFromLivePose()
+    {
+        // Regression: dragging while simulating started from the initial pose.
+        SceneBuilder sb;
+        sb.setWorld("gravity", Vec2{0, -2.0});
+        const ItemId ball = sb.add("body.circle", {0, 5}, {{"radius", 0.3}});
+        Document doc;
+        doc.reset(sb.scene);
+        SimController sim(&doc);
+        Viewport view(&doc, &sim);
+        view.resize(800, 600);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setCamera({0, 4}, 50);
+        sim.step(120); // falls 1 m
+        QTRY_VERIFY_WITH_TIMEOUT(sim.live() && sim.snapshot().step == 120, 5000);
+        const Vec2 before{sim.bodySnap(ball)->x, sim.bodySnap(ball)->y};
+        QVERIFY(before.y < 4.1);
+        const QPoint p0 = view.toScreen(before).toPoint();
+        QTest::mousePress(&view, Qt::LeftButton, {}, p0);
+        for (int i = 1; i <= 10; ++i) {
+            QMouseEvent move(QEvent::MouseMove, QPointF(p0 + QPoint(10 * i, 0)), view.mapToGlobal(QPointF(p0 + QPoint(10 * i, 0))),
+                             Qt::NoButton, Qt::LeftButton, {});
+            QApplication::sendEvent(&view, &move);
+        }
+        QTest::mouseRelease(&view, Qt::LeftButton, {}, p0 + QPoint(100, 0));
+        // 100 px at 50 px/m = 2 m to the right of the live position, not of the initial one.
+        QTRY_VERIFY_WITH_TIMEOUT(std::abs(sim.bodySnap(ball)->x - (before.x + 2.0)) < 0.05, 5000);
+        QVERIFY(std::abs(sim.bodySnap(ball)->y - before.y) < 0.05);
+        // The document still holds the initial conditions.
+        const ItemDef* d = doc.item(ball);
+        QCOMPARE(d->v(d->type->positionIndex()), (Vec2{0, 5}));
         sim.reset();
     }
 };

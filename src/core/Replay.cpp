@@ -15,6 +15,7 @@ const char* typeName(LoggedCommand::Type t)
     case LoggedCommand::Type::Remove: return "remove";
     case LoggedCommand::Type::Update: return "update";
     case LoggedCommand::Type::SetWorld: return "world";
+    case LoggedCommand::Type::SetState: return "state";
     }
     return "";
 }
@@ -32,9 +33,13 @@ QByteArray replayToBytes(const ReplayData& r, const ViewState& view)
         QJsonObject o;
         o.insert(QStringLiteral("step"), QString::number(c.step));
         o.insert(QStringLiteral("type"), QLatin1String(typeName(c.type)));
-        if (c.type == LoggedCommand::Type::Remove)
+        if (c.type == LoggedCommand::Type::Remove) {
             o.insert(QStringLiteral("id"), double(c.id));
-        else if (c.def)
+        } else if (c.type == LoggedCommand::Type::SetState) {
+            o.insert(QStringLiteral("id"), double(c.id));
+            o.insert(QStringLiteral("pose"), QJsonArray{c.pose.p.x, c.pose.p.y, c.pose.c, c.pose.s});
+            o.insert(QStringLiteral("v"), QJsonArray{c.v.x, c.v.y, c.w});
+        } else if (c.def)
             o.insert(QStringLiteral("item"), itemToJson(*c.def));
         // 64-bit masks and step counts do not fit a JSON double exactly.
         if (c.type == LoggedCommand::Type::Update) o.insert(QStringLiteral("mask"), QString::number(c.mask, 16));
@@ -85,6 +90,14 @@ bool replayFromBytes(const QByteArray& bytes, ReplayFile& out, QString* error)
         if (type == QLatin1String("remove")) {
             c.type = LoggedCommand::Type::Remove;
             c.id = ItemId(o.value(QStringLiteral("id")).toDouble());
+        } else if (type == QLatin1String("state")) {
+            c.type = LoggedCommand::Type::SetState;
+            c.id = ItemId(o.value(QStringLiteral("id")).toDouble());
+            const QJsonArray pa = o.value(QStringLiteral("pose")).toArray(), va = o.value(QStringLiteral("v")).toArray();
+            if (pa.size() != 4 || va.size() != 3) return fail(QStringLiteral("bad body state"));
+            c.pose = Pose{{pa[0].toDouble(), pa[1].toDouble()}, pa[2].toDouble(), pa[3].toDouble()};
+            c.v = {va[0].toDouble(), va[1].toDouble()};
+            c.w = va[2].toDouble();
         } else {
             if (type == QLatin1String("add"))
                 c.type = LoggedCommand::Type::Add;

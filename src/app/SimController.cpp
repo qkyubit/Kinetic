@@ -178,6 +178,18 @@ void SimController::loadReplay(const ReplayData& r)
     emit stateChanged();
 }
 
+void SimController::setBodyStates(const std::vector<std::pair<ItemId, Pose>>& poses)
+{
+    if (!active_) return;
+    for (const auto& [id, pose] : poses) {
+        LoggedCommand c;
+        c.type = LoggedCommand::Type::SetState;
+        c.id = id;
+        c.pose = pose;
+        postEdit(std::move(c));
+    }
+}
+
 void SimController::onNotify()
 {
     const bool fresh = sim_.update();

@@ -83,6 +83,8 @@ public:
     // when it cannot apply the change live.
     void updateItem(ItemDefPtr def, uint64_t changed);
     void setWorldDef(const ItemDef& worldDef);
+    // Teleports a body (origin pose) and sets its velocity; wakes it.
+    void setBodyState(ItemId item, const Pose& pose, Vec2 v, double w);
     void capture(RestoreState& out) const;
     const std::vector<ItemDefPtr>& defs() const { return defs_; }
     const ItemDef* def(ItemId id) const;

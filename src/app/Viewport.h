@@ -160,6 +160,12 @@ private:
     Vec2 pivot_;
     Pose gizmoFrame_;
     std::vector<ItemDef> dragStart_;
+    // While simulating: the same items at their live poses, and which of them
+    // are live bodies (moved in the simulation, not in the document).
+    std::vector<ItemDef> dragStartLive_;
+    std::vector<char> dragLiveBody_;
+    std::vector<std::pair<ItemId, Pose>> heldBodies_; // re-pinned every frame while running
+    void captureDragStart();
     QList<ItemId> preBoxSelection_;
     Vec2 boxA_, boxB_;
     ItemId hover_ = 0;

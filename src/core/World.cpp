@@ -301,6 +301,23 @@ void World::capture(RestoreState& out) const
     out.sort();
 }
 
+void World::setBodyState(ItemId item, const Pose& p, Vec2 v, double w)
+{
+    const int i = bodyIndex(item);
+    if (i < 0) return;
+    BodyRec& b = bodies_[size_t(i)];
+    const double n = std::hypot(p.c, p.s);
+    const b2Rot rot = n > 0 ? b2Rot{float(p.c / n), float(p.s / n)} : b2Rot{1, 0};
+    b2Body_SetTransform(b.id, {float(p.p.x), float(p.p.y)}, rot);
+    b2Body_SetLinearVelocity(b.id, {float(v.x), float(v.y)});
+    b2Body_SetAngularVelocity(b.id, float(w));
+    if (b.type != b2_staticBody) b2Body_SetAwake(b.id, true);
+    refreshBodyState(b);
+    b.prevV = b.v;
+    b.prevW = b.w;
+    statesDirty_ = true;
+}
+
 int World::registerBody(ItemId item, b2BodyId id)
 {
     int index;

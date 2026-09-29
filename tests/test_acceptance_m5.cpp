@@ -70,24 +70,56 @@ private slots:
 
     void rubeGoldbergFinishes()
     {
+        // Each stage must happen, in order: hammer -> ball -> block -> dominoes -> green ball -> finish.
         const SceneData scene = loadExample(QStringLiteral("16_rube_goldberg_chain.json"));
-        ItemId finish = 0, ball = 0;
+        ItemId finish = 0, ball = 0, block = 0, green = 0;
+        std::vector<ItemId> dominoes;
         for (const ItemDef& d : scene.items) {
             if (d.type->typeId() == QLatin1String("tool.trigger")) finish = d.id;
-            if (d.name == QLatin1String("Green ball")) ball = d.id;
+            if (d.name == QLatin1String("Ball")) ball = d.id;
+            if (d.name == QLatin1String("Pusher block")) block = d.id;
+            if (d.name == QLatin1String("Green ball")) green = d.id;
+            if (d.name == QLatin1String("Domino")) dominoes.push_back(d.id);
         }
-        QVERIFY(finish && ball);
+        QVERIFY(finish && ball && block && green && dominoes.size() == 9);
         SimCore core;
         core.start(startFrom(scene));
-        double reached = -1;
+        const double blockX0 = [&] {
+            for (const ItemDef& d : scene.items)
+                if (d.id == block) return d.v(d.type->positionIndex()).x;
+            return 0.0;
+        }();
+        double reached = -1, maxBallX = -1e9, maxBlockTilt = 0;
+        std::vector<double> fell(dominoes.size(), -1.0);
+        double greenMoved = -1;
+        Snapshot s;
         for (int i = 0; i < 120 * 20 && reached < 0; ++i) {
             core.advance();
             for (const TriggerEvent& e : core.events())
-                if (e.trigger == finish && e.body == ball && e.enter) reached = e.time;
+                if (e.trigger == finish && e.body == green && e.enter) reached = e.time;
             core.clearEvents();
+            core.writeSnapshot(s);
+            maxBallX = std::max(maxBallX, double(body(s, ball)->x));
+            maxBlockTilt = std::max(maxBlockTilt, std::abs(std::atan2(double(body(s, block)->s), double(body(s, block)->c))));
+            for (size_t k = 0; k < dominoes.size(); ++k) {
+                const BodySnap* d = body(s, dominoes[k]);
+                if (fell[k] < 0 && std::abs(std::atan2(double(d->s), double(d->c))) > 0.8) fell[k] = s.time;
+            }
+            if (greenMoved < 0 && std::hypot(body(s, green)->vx, body(s, green)->vy) > 0.05) greenMoved = s.time;
         }
-        qInfo("Rube Goldberg chain: finish gate reached at t = %.2f s", reached);
-        QVERIFY(reached > 0);
+        QString order;
+        for (double t : fell) order += QStringLiteral(" %1").arg(t, 0, 'f', 2);
+        qInfo("Rube Goldberg: dominoes fall at%s s; green ball moves at %.2f s; finish at %.2f s", qPrintable(order),
+              greenMoved, reached);
+        qInfo("  ball max x %.2f (block started at %.2f), block max tilt %.1f°", maxBallX, blockX0, maxBlockTilt * kDegPerRad);
+        QVERIFY(maxBallX < blockX0);        // the ball never gets past the block
+        QVERIFY(maxBlockTilt < 0.35);       // the block slides; it does not tumble
+        for (size_t k = 0; k < fell.size(); ++k) {
+            QVERIFY2(fell[k] > 0, qPrintable(QStringLiteral("domino %1 never fell").arg(k + 1)));
+            if (k > 0) QVERIFY2(fell[k] >= fell[k - 1], "dominoes fell out of order");
+        }
+        QVERIFY(greenMoved >= fell.back() - 0.1); // pushed by the last domino
+        QVERIFY(reached > greenMoved);
     }
 };
 

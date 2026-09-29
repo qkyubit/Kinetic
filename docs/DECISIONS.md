@@ -301,7 +301,10 @@ conservative, so the energy readout excludes them.
 
 **Examples are generated from code** (`tools/make_examples.cpp`), so they stay
 valid as schemas evolve; a test loads every example and runs it. The Rube
-Goldberg chain is checked to reach its finish gate (5.55 s).
+Goldberg chain (hammer, ball, pusher block, nine dominoes, ball, finish gate)
+is checked stage by stage: the ball never passes the block, every domino falls
+in order, the last one sets the green ball rolling, and it reaches the gate
+(9.75 s).
 
 **Start page.** Shown instead of the viewport at start-up (optional): new,
 open, recent scenes and the examples. Help → Start Page returns to it.
@@ -316,3 +319,13 @@ metainfo together).
 
 **`kinetic --schema`** prints the scene-format reference from the registered
 schemas, so documentation cannot drift from the code.
+
+**Dragging while simulating moves the live body, not the scene.** A live drag
+sends logged `SetState` commands (pose from the live snapshot plus the drag,
+zero velocity) instead of editing the document, so the body moves from where
+it is and the scene's initial conditions stay intact (Reset returns to them).
+While the simulation runs, the held pose is re-sent every frame so the body
+stays under the cursor; on release it continues from rest. The commands are
+in the edit log, so scrubbing and replay files reproduce drags exactly. Live
+drags are not undo steps (the timeline serves that purpose). Non-body items
+(fields, liquids, optics) and size changes still edit the document.

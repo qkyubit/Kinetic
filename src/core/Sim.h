@@ -22,12 +22,17 @@ namespace kn {
 
 // An edit that changes simulation state; these are logged for replays.
 struct LoggedCommand {
-    enum class Type : uint8_t { Add, Remove, Update, SetWorld };
+    // SetState moves a live body (dragging while simulating) without
+    // touching the document's initial conditions.
+    enum class Type : uint8_t { Add, Remove, Update, SetWorld, SetState };
     uint64_t step = 0;
     Type type = Type::Update;
     ItemDefPtr def;   // Add, Update, SetWorld
-    ItemId id = 0;    // Remove
+    ItemId id = 0;    // Remove, SetState
     uint64_t mask = 0; // Update: changed property bits
+    Pose pose;         // SetState: body origin and rotation
+    Vec2 v;            // SetState: linear velocity
+    double w = 0.0;    // SetState: angular velocity
 };
 
 struct SimStart {

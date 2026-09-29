@@ -143,6 +143,7 @@ void SimCore::apply(const LoggedCommand& c)
         worldDef_ = c.def;
         world_->setWorldDef(*c.def);
         break;
+    case LoggedCommand::Type::SetState: world_->setBodyState(c.id, c.pose, c.v, c.w); break;
     }
 }
 

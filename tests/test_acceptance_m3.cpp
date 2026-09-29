@@ -164,6 +164,55 @@ private slots:
         }
     }
 
+    void liveDragMovesBodyNotDocument()
+    {
+        // Dragging a body while simulating sends SetState: the body continues
+        // from the dragged pose at rest; scrubbing and replay files reproduce it.
+        SceneBuilder sb;
+        const ItemId b = sb.add("body.circle", {0, 10}, {{"radius", 0.2}});
+        SimCore core;
+        core.start(sb.start(true));
+        for (int i = 0; i < 60; ++i) core.advance(); // falling
+        LoggedCommand c;
+        c.type = LoggedCommand::Type::SetState;
+        c.id = b;
+        c.pose = Pose::fromAngle({5, 20}, 0.5);
+        core.edit(c);
+        Snapshot s;
+        core.writeSnapshot(s);
+        QCOMPARE(body(s, b)->x, 5.0f);
+        QCOMPARE(body(s, b)->y, 20.0f);
+        QCOMPARE(body(s, b)->vy, 0.0f);
+        for (int i = 0; i < 60; ++i) core.advance();
+        core.writeSnapshot(s);
+        const double y = body(s, b)->y;
+        // Free fall from rest for 0.5 s (semi-implicit Euler, within one step).
+        QVERIFY(std::abs(y - (20 - 0.5 * 9.81 * 0.25)) < 9.81 * 0.5 / 120);
+        RestoreState live;
+        core.world()->capture(live);
+        // The initial conditions are untouched.
+        QCOMPARE(sb.item(b).v(sb.item(b).type->positionIndex()), (Vec2{0, 10}));
+        // Scrub across the drag.
+        core.scrubTo(30);
+        core.scrubTo(120);
+        RestoreState again;
+        core.world()->capture(again);
+        QVERIFY(again == live);
+        // Replay file.
+        ReplayFile rf;
+        QVERIFY(replayFromBytes(replayToBytes(core.exportReplay(), {}), rf, nullptr));
+        SimStart st;
+        st.items = rf.replay.items;
+        st.world = rf.replay.world;
+        st.log = rf.replay.log;
+        st.headStep = rf.replay.headStep;
+        SimCore replay;
+        replay.start(st);
+        for (int i = 0; i < 120; ++i) replay.advance();
+        replay.world()->capture(again);
+        QVERIFY(again == live);
+    }
+
     void replayMemory()
     {
         // 500 bodies for 10 minutes at 120 Hz, recording on.

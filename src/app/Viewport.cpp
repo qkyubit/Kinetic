@@ -69,7 +69,11 @@ Viewport::Viewport(Document* doc, SimController* sim, QWidget* parent) : QRhiWid
         cancelTool();
         setCamera(doc_->scene().view.center, doc_->scene().view.pixelsPerMetre);
     });
-    connect(sim_, &SimController::snapshotUpdated, this, refresh);
+    connect(sim_, &SimController::snapshotUpdated, this, [this, refresh] {
+        // Keep dragged bodies under the cursor while the simulation runs.
+        if (!heldBodies_.empty() && sim_->running()) sim_->setBodyStates(heldBodies_);
+        refresh();
+    });
     connect(sim_, &SimController::stateChanged, this, refresh);
 }
 
@@ -331,12 +335,31 @@ Viewport::Drag Viewport::hitGizmo(QPointF screen) const
     return Drag::None;
 }
 
+void Viewport::captureDragStart()
+{
+    dragStart_.clear();
+    dragStartLive_.clear();
+    dragLiveBody_.clear();
+    for (ItemId id : transformTargets()) {
+        const ItemDef& d = *doc_->item(id);
+        dragStart_.push_back(d);
+        ItemDef live = d;
+        const BodySnap* b = d.type->kind() == ItemKind::Body ? bodySnap(id) : nullptr;
+        if (b) live.type->setPose(live, b->pose());
+        dragStartLive_.push_back(std::move(live));
+        dragLiveBody_.push_back(b ? 1 : 0);
+    }
+}
+
 void Viewport::applyTransformDrag(QPointF screen, Qt::KeyboardModifiers mods)
 {
     const Vec2 w = toWorld(screen);
     const bool snap = snap_ != bool(mods & Qt::ControlModifier); // Ctrl toggles snapping while dragging
     std::vector<ItemDef> after = dragStart_;
+    std::vector<ItemDef> afterLive = dragStartLive_;
     QString text;
+    // The same transform is applied to the document items and to the live copies.
+    for (std::vector<ItemDef>* items : {&after, &afterLive}) {
     switch (drag_) {
     case Drag::MoveItems:
     case Drag::GizmoFree:
@@ -353,7 +376,7 @@ void Viewport::applyTransformDrag(QPointF screen, Qt::KeyboardModifiers mods)
             if (drag_ == Drag::GizmoY) snapped.x = target.x;
             delta = snapped - pivot_;
         }
-        for (ItemDef& d : after) d.type->translate(d, delta);
+        for (ItemDef& d : *items) d.type->translate(d, delta);
         text = tr("Move");
         break;
     }
@@ -365,7 +388,7 @@ void Viewport::applyTransformDrag(QPointF screen, Qt::KeyboardModifiers mods)
             const double step = 15.0 / kDegPerRad;
             da = std::round(da / step) * step;
         }
-        for (ItemDef& d : after) d.type->rotateAbout(d, da, pivot_);
+        for (ItemDef& d : *items) d.type->rotateAbout(d, da, pivot_);
         text = tr("Rotate");
         break;
     }
@@ -392,8 +415,8 @@ void Viewport::applyTransformDrag(QPointF screen, Qt::KeyboardModifiers mods)
             sx = std::max(sx, 0.05);
             sy = std::max(sy, 0.05);
         }
-        const bool multi = after.size() > 1;
-        for (ItemDef& d : after) {
+        const bool multi = items->size() > 1;
+        for (ItemDef& d : *items) {
             if (multi) {
                 const double s = drag_ == Drag::GizmoScaleY ? sy : sx;
                 d.type->scale(d, s, s);
@@ -411,6 +434,17 @@ void Viewport::applyTransformDrag(QPointF screen, Qt::KeyboardModifiers mods)
     }
     default: return;
     }
+    }
+    // Live bodies move in the simulation (held at rest while dragged); the
+    // document keeps their initial pose and only gets other changes (size).
+    std::vector<std::pair<ItemId, Pose>> live;
+    for (size_t i = 0; i < after.size(); ++i) {
+        if (!dragLiveBody_[i]) continue;
+        live.push_back({afterLive[i].id, afterLive[i].type->pose(afterLive[i])});
+        after[i].type->setPose(after[i], dragStart_[i].type->pose(dragStart_[i]));
+    }
+    if (!live.empty()) sim_->setBodyStates(live);
+    heldBodies_ = std::move(live);
     doc_->editItems(after, text, true);
 }
 
@@ -438,8 +472,7 @@ void Viewport::mousePressEvent(QMouseEvent* e)
         if (g != Drag::None) {
             drag_ = g;
             selectionPivot(pivot_, gizmoFrame_);
-            dragStart_.clear();
-            for (ItemId id : transformTargets()) dragStart_.push_back(*doc_->item(id));
+            captureDragStart();
             return;
         }
         const ItemId hit = pick(e->position());
@@ -457,8 +490,7 @@ void Viewport::mousePressEvent(QMouseEvent* e)
             }
             drag_ = Drag::Pending;
             selectionPivot(pivot_, gizmoFrame_);
-            dragStart_.clear();
-            for (ItemId id : transformTargets()) dragStart_.push_back(*doc_->item(id));
+            captureDragStart();
         } else {
             preBoxSelection_ = additive ? doc_->selection() : QList<ItemId>{};
             if (!additive) doc_->setSelection({});
@@ -606,6 +638,7 @@ void Viewport::mouseReleaseEvent(QMouseEvent* e)
 {
     const Drag d = drag_;
     drag_ = Drag::None;
+    heldBodies_.clear();
     switch (d) {
     case Drag::Pan: setCursor(tool_ == Tool::Select ? Qt::ArrowCursor : Qt::CrossCursor); break;
     case Drag::Pending:
