@@ -47,6 +47,20 @@ public:
             .tip(QStringLiteral("Raise it to make orbits of kilogram-scale bodies visible."));
         s.num(QStringLiteral("coulombSoftening"), QStringLiteral("Coulomb softening"), unit::m, 0.001, 1, 0.05, 3)
             .tip(QStringLiteral("Plummer softening length for electric and point-gravity forces."));
+        s.beginGroup(QStringLiteral("Sleeping"));
+        s.num(QStringLiteral("sleepDelay"), QStringLiteral("Sleep delay"), unit::s, 0.5, 600, 0.5, 2)
+            .tip(QStringLiteral("How long a body must be at rest before it may sleep (stop being simulated until "
+                                "something touches it). 0.5 s is Box2D's own delay."));
+        s.num(QStringLiteral("fieldSleepDelay"), QStringLiteral("Sleep delay in fields"), unit::s, 0.5, 600, 5, 2)
+            .tip(QStringLiteral("Delay for bodies inside wind, vortex and other field regions. A body entering or "
+                                "leaving a region wakes everything in it."));
+        s.num(QStringLiteral("sleepThreshold"), QStringLiteral("At-rest speed"), unit::mps, 0.001, 1, 0.05, 3)
+            .log()
+            .tip(QStringLiteral("Bodies slower than this count as at rest."));
+        s.beginGroup(QStringLiteral("World"));
+        s.num(QStringLiteral("worldLimit"), QStringLiteral("World size limit"), unit::m, 10, 90000, 10000, 0)
+            .log()
+            .tip(QStringLiteral("Bodies further than this from the origin are frozen (they have left the world)."));
         s.beginGroup(QStringLiteral("Replay"));
         s.integer(QStringLiteral("keyframeInterval"), QStringLiteral("Keyframe interval (steps)"), 10, 100000, 240)
             .tip(QStringLiteral("While recording, the full state is stored every N steps and the world is rebuilt "

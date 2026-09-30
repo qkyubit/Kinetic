@@ -57,7 +57,7 @@ public:
     MagneticRuntime(const ItemDef& d, const MagneticField& t, World& w) : FieldRuntime(d, t, w), t_(t) { edited(d); }
     void edited(const ItemDef& d) override { b_ = d.d(t_.b_); }
 
-    void preStep(World& w) override
+    void applyField(World& w) override
     {
         const double h = w.dt();
         for (int i = 0; i < w.bodyCapacity(); ++i) {

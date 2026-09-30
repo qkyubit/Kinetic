@@ -1,11 +1,15 @@
 // Graph sampling and CSV export, and the trigger log, driven through the real
 // physics thread.
 #include "app/GraphPanel.h"
+#include "app/PhysicsOptionsDialog.h"
 #include "app/TriggerLogPanel.h"
 #include "app/Viewport.h"
 #include "core/SceneBuilder.h"
 
+#include <QCheckBox>
+#include <QDoubleSpinBox>
 #include <QFile>
+#include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -139,6 +143,29 @@ private slots:
         QVERIFY(std::hypot(b->vx, b->vy) > 1); // still moving: thrown
         QVERIFY(std::abs(b->w) > 0.1);         // off-centre grip made it spin
         sim.reset();
+    }
+
+    void physicsOptionsDialog()
+    {
+        QTemporaryDir dir;
+        QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, dir.path());
+        Document doc;
+        doc.reset(SceneData::empty());
+        PhysicsOptionsDialog dlg(&doc);
+        dlg.findChild<QDoubleSpinBox*>(QStringLiteral("fieldSleepDelay"))->setValue(12.0);
+        dlg.findChild<QDoubleSpinBox*>(QStringLiteral("worldLimit"))->setValue(3000.0);
+        auto boxes = dlg.findChildren<QCheckBox*>();
+        boxes.last()->setChecked(true); // also for new scenes
+        dlg.accept();
+        const ItemDef& w = doc.world();
+        QCOMPARE(w.d(w.type->schema().indexOf("fieldSleepDelay")), 12.0);
+        QCOMPARE(w.d(w.type->schema().indexOf("worldLimit")), 3000.0);
+        doc.undoStack()->undo(); // one undo step for the whole dialog
+        QCOMPARE(doc.world().d(w.type->schema().indexOf("fieldSleepDelay")), 5.0);
+        QCOMPARE(doc.world().d(w.type->schema().indexOf("worldLimit")), 10000.0);
+        SceneData fresh = SceneData::empty();
+        PhysicsOptionsDialog::applyDefaults(fresh.world);
+        QCOMPARE(fresh.world.d(fresh.world.type->schema().indexOf("fieldSleepDelay")), 12.0);
     }
 
     void wasdPansCamera()

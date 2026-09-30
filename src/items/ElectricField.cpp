@@ -47,7 +47,7 @@ public:
     ElectricRuntime(const ItemDef& d, const ElectricField& t, World& w) : FieldRuntime(d, t, w), t_(t) { edited(d); }
     void edited(const ItemDef& d) override { e_ = d.v(t_.e_); }
 
-    void preStep(World& w) override
+    void applyField(World& w) override
     {
         for (int i = 0; i < w.bodyCapacity(); ++i) {
             if (!affects(w, i) || w.body(i).charge == 0.0f) continue;

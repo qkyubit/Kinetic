@@ -40,10 +40,19 @@ class FieldRuntime : public ItemRuntime {
 public:
     FieldRuntime(const ItemDef& def, const FieldType& type, World& world);
     bool applyEdit(const ItemDef& def, uint64_t changed, World& world) override;
+    // Tracks which bodies are inside (marking them for the longer sleep delay
+    // and waking the region when one enters or leaves), then applyField().
+    void preStep(World& w) final;
 
 protected:
-    // Region test for body `i` (alive, dynamic, awake).
-    bool affects(const World& w, int i) const;
+    // The field's forces for this step. Must not allocate.
+    virtual void applyField(World& w) = 0;
+    // Body `i` is inside the region and awake (valid during applyField).
+    bool affects(const World& w, int i) const
+    {
+        return size_t(i) < inside_.size() && inside_[size_t(i)] && w.body(i).awake;
+    }
+    bool inRegion(const World& w, int i) const;
     virtual void edited(const ItemDef&) {}
 
     const FieldType* type_;
@@ -51,6 +60,8 @@ protected:
     int region_ = 0;
     Pose pose_;
     double hw_ = 0, hh_ = 0, r2_ = 0;
+    std::vector<char> inside_; // per body index
+    bool primed_ = false;      // membership known (first step after a (re)build only records it)
 };
 
 } // namespace kn

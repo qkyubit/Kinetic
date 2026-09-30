@@ -342,3 +342,25 @@ breakdown. Grabbing starts the simulation if it is paused.
 **WASD pans the camera**, so the gizmo/tool shortcuts that used W, A and D
 moved: Move gizmo T, Draw B, Protractor O (Grab is H). Panning runs on a timer
 only while a key is held, so idle CPU stays at zero.
+
+**Sleep delay ("physics timeout").** Box2D puts a body to sleep after 0.5 s
+below its sleep speed and ignores applied forces when deciding. A body that
+starts from rest in a gentle wind or vortex therefore fell asleep after
+creeping a few millimetres, and fields skip sleeping bodies, so objects only
+moved while the field was being edited (edits wake everything). Now each body
+has a sleep delay: while it has been at rest for less than the delay, Box2D
+sleeping is disabled on it (`b2Body_EnableSleep`); after that Box2D's own
+0.5 s applies. The delay is longer inside field regions (default 5 s) than
+elsewhere (default 0.5 s, Box2D's behaviour). Each field tracks which bodies
+are inside; when one enters or leaves, every body in the region wakes and its
+delay restarts. Rest time and membership are part of the state (keyframes
+restore rest time; a rebuilt field records membership on its first step
+without waking anyone), so replays stay exact. Settings → Configure Physics
+edits these per scene (undoable) and can save them as defaults for new scenes.
+
+**World size limit.** Box2D asserts when a body's bounding box leaves ±100 km
+(`B2_HUGE`), which a body thrown off the edge of the scene eventually does. A
+body whose origin passes the world limit (default 10 km, at most 90 km) is
+frozen: velocity zeroed and disabled in Box2D, excluded from energies, and
+restored as frozen from keyframes. Dragging it back into the world enables it
+again. A grab/throw fuzz over every example runs with Box2D assertions on.

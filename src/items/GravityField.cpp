@@ -101,7 +101,7 @@ public:
         return a;
     }
 
-    void preStep(World& w) override
+    void applyField(World& w) override
     {
         for (int i = 0; i < w.bodyCapacity(); ++i) {
             if (!affects(w, i)) continue;

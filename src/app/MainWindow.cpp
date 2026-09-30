@@ -6,6 +6,7 @@
 #include "GraphPanel.h"
 #include "Icons.h"
 #include "PlaybackBar.h"
+#include "PhysicsOptionsDialog.h"
 #include "PropertiesPanel.h"
 #include "ConstantsPanel.h"
 #include "StartPage.h"
@@ -357,6 +358,10 @@ void MainWindow::buildMenus()
     tools->addSeparator();
     tools->addActions({drawAct_, rulerAct_, protractorAct_, probeAct_});
 
+    QMenu* settings = menuBar()->addMenu(tr("S&ettings"));
+    settings->addAction(themedIcon(QStringLiteral("configure"), QStringLiteral(":/icons/tool.svg")), tr("Configure &Physics…"),
+                        this, [this] { PhysicsOptionsDialog(doc_, this).exec(); });
+
     QMenu* help = menuBar()->addMenu(tr("&Help"));
     help->addAction(themedIcon(QStringLiteral("go-home"), QStringLiteral(":/icons/tool.svg")), tr("&Start Page"), this,
                     [this] { showStartPage(true); });
@@ -420,7 +425,9 @@ void MainWindow::newScene()
 {
     if (!maybeSave()) return;
     doc_->setFilePath({});
-    doc_->reset(SceneData::empty());
+    SceneData scene = SceneData::empty();
+    PhysicsOptionsDialog::applyDefaults(scene.world);
+    doc_->reset(std::move(scene));
     showStartPage(false);
     updateTitle();
 }

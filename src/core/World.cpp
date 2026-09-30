@@ -45,6 +45,10 @@ WorldSettings WorldSettings::fromDef(const ItemDef& d)
     s.contactHertz = numberProp(d, "contactHertz", 30.0);
     s.contactDamping = numberProp(d, "contactDamping", 10.0);
     s.keyframeInterval = int(numberProp(d, "keyframeInterval", 240));
+    s.sleepDelay = std::max(0.5, numberProp(d, "sleepDelay", 0.5));
+    s.fieldSleepDelay = std::max(0.5, numberProp(d, "fieldSleepDelay", 5.0));
+    s.sleepThreshold = std::max(1e-4, numberProp(d, "sleepThreshold", 0.05));
+    s.worldLimit = std::clamp(numberProp(d, "worldLimit", 10000.0), 10.0, 90000.0);
     s.hz = std::clamp(s.hz, 10, 2000);
     s.substeps = std::clamp(s.substeps, 1, 64);
     s.keyframeInterval = std::max(s.keyframeInterval, 1);
@@ -93,6 +97,8 @@ void World::applySettings()
     b2World_EnableContinuous(id_, settings_.continuous);
     b2World_SetRestitutionThreshold(id_, float(settings_.restitutionThreshold));
     b2World_SetContactTuning(id_, float(settings_.contactHertz), float(settings_.contactDamping), 3.0f);
+    for (BodyRec& b : bodies_)
+        if (b.alive) b2Body_SetSleepThreshold(b.id, float(settings_.sleepThreshold));
 }
 
 void World::setWorldDef(const ItemDef& worldDef)
@@ -183,6 +189,7 @@ void World::build(const std::vector<ItemDefPtr>& defs, const RestoreState* resto
     std::fill(constantValues_.begin(), constantValues_.end(), std::nan(""));
     for (const ItemDefPtr& d : defs) items_.push_back({d, nullptr});
     reindex();
+    rebuilding_ = restore != nullptr;
     for (Entry& e : items_)
         if (e.def->type->kind() == ItemKind::Body) createRuntime(e, restore);
     createDormant(restore);
@@ -196,6 +203,7 @@ void World::build(const std::vector<ItemDefPtr>& defs, const RestoreState* resto
             std::copy_n(restore->sleepForces.begin() + sf.begin, b.forceCount, b.lastForces);
         }
     }
+    rebuilding_ = false;
     grabJoint_ = b2_nullJointId; // destroyed with the bodies
     grab_ = restore ? restore->grab : RestoreState::Grab{};
     ensureGrabJoint();
@@ -288,7 +296,8 @@ void World::capture(RestoreState& out) const
         s.vx = v.x;
         s.vy = v.y;
         s.w = b2Body_GetAngularVelocity(b.id);
-        s.awake = b2Body_IsAwake(b.id) ? 1u : 0u;
+        s.awake = b.frozen ? 2u : (b2Body_IsAwake(b.id) ? 1u : 0u);
+        s.still = b.stillTime;
         out.bodies.push_back({b.item, s});
         if (!s.awake && b.forceCount > 0) {
             out.sleepIndex.push_back({b.item, uint32_t(out.sleepForces.size()), uint32_t(b.forceCount)});
@@ -310,6 +319,11 @@ void World::setBodyState(ItemId item, const Pose& p, Vec2 v, double w)
     const int i = bodyIndex(item);
     if (i < 0) return;
     BodyRec& b = bodies_[size_t(i)];
+    if (b.frozen) { // dragged back into the world
+        b2Body_Enable(b.id);
+        b.frozen = false;
+    }
+    b.stillTime = 0.0f;
     const double n = std::hypot(p.c, p.s);
     const b2Rot rot = n > 0 ? b2Rot{float(p.c / n), float(p.s / n)} : b2Rot{1, 0};
     b2Body_SetTransform(b.id, {float(p.p.x), float(p.p.y)}, rot);
@@ -328,7 +342,7 @@ void World::ensureGrabJoint()
     grabJoint_ = b2_nullJointId;
     if (!grab_.item) return;
     const int i = bodyIndex(grab_.item);
-    if (i < 0 || bodies_[size_t(i)].type != b2_dynamicBody) {
+    if (i < 0 || bodies_[size_t(i)].type != b2_dynamicBody || bodies_[size_t(i)].frozen) {
         grab_ = {};
         return;
     }
@@ -386,6 +400,7 @@ int World::registerBody(ItemId item, b2BodyId id)
     b.id = id;
     b.alive = true;
     b2Body_SetUserData(id, reinterpret_cast<void*>(intptr_t(index) + 1));
+    b2Body_SetSleepThreshold(id, float(settings_.sleepThreshold));
     bodyIndex_[item] = index;
     charged_.reserve(bodies_.size());
     magnets_.reserve(bodies_.size());
@@ -519,8 +534,72 @@ void World::addFieldTorque(int index, ForceSource source, float t)
     addEntry(b, source, 0.0f, 0.0f, t);
 }
 
+void World::wakeBody(int index)
+{
+    BodyRec& b = bodies_[size_t(index)];
+    if (!b.alive || b.frozen || b.type != b2_dynamicBody) return;
+    b.stillTime = 0.0f;
+    if (!b2Body_IsAwake(b.id)) {
+        b2Body_SetAwake(b.id, true);
+        b.awake = true;
+    }
+}
+
+void World::restoreBodyExtras(int index, const BodyState& s)
+{
+    BodyRec& b = bodies_[size_t(index)];
+    b.stillTime = s.still;
+    if (s.awake == 2) freeze(b);
+}
+
+void World::freeze(BodyRec& b)
+{
+    if (grab_.item == b.item) release();
+    b2Body_SetLinearVelocity(b.id, {0, 0});
+    b2Body_SetAngularVelocity(b.id, 0);
+    b2Body_Disable(b.id);
+    b.frozen = true;
+    b.v = {0, 0};
+    b.w = 0;
+    b.awake = false;
+    b.forceCount = 0;
+}
+
+// A body at rest may only sleep once it has been still for the configured
+// delay (longer inside field regions, where a slow start from rest would
+// otherwise put it to sleep before the field gets it moving). Box2D adds its
+// own B2_TIME_TO_SLEEP (0.5 s) once sleeping is re-enabled on the body.
+void World::applySleepPolicy()
+{
+    if (!settings_.sleep) return;
+    const float h = dt(), thr = float(settings_.sleepThreshold);
+    for (BodyRec& b : bodies_) {
+        if (!b.alive || b.type != b2_dynamicBody || b.frozen || !b.awake) continue;
+        const bool still = b2Length(b.v) < thr && std::abs(b.w) * 0.5f < thr;
+        b.stillTime = still ? b.stillTime + h : 0.0f;
+        const double delay = b.inField ? std::max(settings_.fieldSleepDelay, settings_.sleepDelay) : settings_.sleepDelay;
+        const bool hold = double(b.stillTime) < delay - 0.5;
+        if (hold != b.sleepHeld) {
+            b2Body_EnableSleep(b.id, !hold);
+            b.sleepHeld = hold;
+        }
+    }
+}
+
+// Freezes bodies that leave the world before they reach Box2D's hard limit.
+void World::applyWorldLimit()
+{
+    const float L = float(settings_.worldLimit);
+    for (BodyRec& b : bodies_) {
+        if (!b.alive || b.frozen || b.type == b2_staticBody) continue;
+        if (std::abs(b.origin.x) > L || std::abs(b.origin.y) > L || !std::isfinite(b.origin.x) || !std::isfinite(b.origin.y))
+            freeze(b);
+    }
+}
+
 void World::wakeAll()
 {
+    if (rebuilding_) return; // keyframe rebuilds restore the sleep state as it was
     for (BodyRec& b : bodies_)
         if (b.alive && b.type == b2_dynamicBody && !b2Body_IsAwake(b.id)) {
             b2Body_SetAwake(b.id, true);
@@ -663,6 +742,7 @@ void World::step()
         // Sleeping bodies keep their last force breakdown (they are in equilibrium).
         // Bodies restored asleep from a keyframe have no contact data until they
         // wake, so they report no breakdown rather than a misleading partial one.
+        b.inField = false;
         b.refreshForces = b.awake;
         if (!b.refreshForces) continue;
         b.forceCount = 0;
@@ -689,6 +769,8 @@ void World::step()
         b.a = b2MulSV(1.0f / h, b2Sub(b.v, b.prevV));
         b.alpha = (b.w - b.prevW) / h;
     }
+    applyWorldLimit();
+    applySleepPolicy();
 
     computeContactForces();
     dispatchSensorEvents();
@@ -827,7 +909,7 @@ EnergySnap World::energy() const
     EnergySnap e;
     const b2Vec2 g{float(settings_.gravity.x), float(settings_.gravity.y)};
     for (const BodyRec& b : bodies_) {
-        if (!b.alive || b.type != b2_dynamicBody) continue;
+        if (!b.alive || b.type != b2_dynamicBody || b.frozen) continue;
         e.kinetic += 0.5 * double(b.mass) * double(b2Dot(b.v, b.v)) + 0.5 * double(b.inertia) * double(b.w) * double(b.w);
         e.gravity -= double(b.mass) * double(b.gravityScale) * (double(g.x) * double(b.com.x) + double(g.y) * double(b.com.y));
     }

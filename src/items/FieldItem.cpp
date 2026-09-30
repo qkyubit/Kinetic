@@ -137,10 +137,29 @@ bool FieldRuntime::applyEdit(const ItemDef& d, uint64_t, World& w)
     return true;
 }
 
-bool FieldRuntime::affects(const World& w, int i) const
+void FieldRuntime::preStep(World& w)
+{
+    const int n = w.bodyCapacity();
+    if (int(inside_.size()) != n) inside_.resize(size_t(n), 0); // grows only when bodies are added
+    bool changed = false;
+    for (int i = 0; i < n; ++i) {
+        const bool in = inRegion(w, i);
+        if (in) w.markInField(i);
+        if (primed_ && in != bool(inside_[size_t(i)])) changed = true;
+        inside_[size_t(i)] = in;
+    }
+    primed_ = true;
+    // Something moved in or out: everything in the region wakes and restarts its sleep delay.
+    if (changed)
+        for (int i = 0; i < n; ++i)
+            if (inside_[size_t(i)]) w.wakeBody(i);
+    applyField(w);
+}
+
+bool FieldRuntime::inRegion(const World& w, int i) const
 {
     const BodyRec& b = w.body(i);
-    if (!b.alive || b.type != b2_dynamicBody || !b.awake) return false;
+    if (!b.alive || b.type != b2_dynamicBody || b.frozen) return false;
     const Vec2 l = pose_.inverse({b.com.x, b.com.y});
     switch (region_) {
     case FieldType::Rectangle: return std::abs(l.x) <= hw_ && std::abs(l.y) <= hh_;

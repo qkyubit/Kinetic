@@ -59,7 +59,7 @@ public:
     void edited(const ItemDef& d) override { def_ = std::make_shared<ItemDef>(d); }
 
     // Called before every physics step; must not allocate.
-    void preStep(World& w) override
+    void applyField(World& w) override
     {
         for (int i = 0; i < w.bodyCapacity(); ++i) {
             if (!affects(w, i)) continue;

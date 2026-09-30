@@ -61,6 +61,10 @@ branches the timeline. **File → Save Replay** stores the initial scene and
 every edit, and plays back bit-identically. Graphs: select bodies and use
 **View → New Graph** (Ctrl+K); any quantity can go on either axis, with CSV
 export. Dock layout, theme (Breeze light/dark, live) and settings persist.
+**Settings → Configure Physics** sets how long bodies must rest before they
+sleep (separately inside wind, vortex and other fields, where a body entering
+or leaving wakes the region), the at-rest speed, the world size limit (bodies
+beyond it are frozen) and the physics rate.
 
 Examples (File → Open Example, or the start page): pendulum, double pendulum,
 projectile with and without drag, Newton's cradle, spring–mass system,
@@ -163,13 +167,14 @@ public:
 };
 ```
 
-The runtime lives on the physics thread. `preStep` runs before every Box2D
-step and must not allocate; forces go through `World` so they are tagged and
-appear in force vectors, probes and graphs:
+The runtime lives on the physics thread. `applyField` runs before every Box2D
+step and must not allocate (`FieldRuntime` first works out which bodies are
+in the region); forces go through `World` so they are tagged and appear in
+force vectors, probes and graphs:
 
 ```cpp
 class VortexRuntime final : public FieldRuntime {
-    void preStep(World& w) override
+    void applyField(World& w) override
     {
         for (int i = 0; i < w.bodyCapacity(); ++i) {
             if (!affects(w, i)) continue; // alive, dynamic, awake, centre of mass in the region

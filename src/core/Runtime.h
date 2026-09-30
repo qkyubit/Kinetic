@@ -20,9 +20,10 @@ struct BodyState {
     float qc = 1, qs = 0; // rotation
     float vx = 0, vy = 0; // linear velocity of the centre of mass
     float w = 0;
-    uint32_t awake = 1; // 32-bit so the struct has no padding (compared bytewise)
+    uint32_t awake = 1; // 0 asleep, 1 awake, 2 frozen (left the world); 32-bit: no padding (compared bytewise)
+    float still = 0;    // seconds spent below the sleep threshold (sleep delay)
 };
-static_assert(sizeof(BodyState) == 32);
+static_assert(sizeof(BodyState) == 36);
 
 // Dynamic state used to rebuild items without losing their motion (keyframes,
 // live rebuilds after geometry edits).

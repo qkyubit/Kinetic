@@ -77,7 +77,7 @@ public:
     WindRuntime(const ItemDef& d, const WindField& t, World& w) : FieldRuntime(d, t, w), t_(t) { edited(d); }
     void edited(const ItemDef& d) override { def_ = std::make_shared<ItemDef>(d); }
 
-    void preStep(World& w) override
+    void applyField(World& w) override
     {
         const float rho = float(w.settings().airDensity);
         const float h = w.dt();

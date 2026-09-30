@@ -27,6 +27,13 @@ struct WorldSettings {
     double contactHertz = 30.0;
     double contactDamping = 10.0;
     int keyframeInterval = 240;
+    // Sleeping ("timeout"): a body at rest (below sleepThreshold) may sleep
+    // after sleepDelay seconds, or fieldSleepDelay inside a field region.
+    double sleepDelay = 0.5;
+    double fieldSleepDelay = 5.0;
+    double sleepThreshold = 0.05;
+    // Bodies further than this from the origin are frozen (Box2D's limit is 100 km).
+    double worldLimit = 10000.0;
 
     static WorldSettings fromDef(const ItemDef& worldDef);
 };
@@ -46,6 +53,11 @@ struct BodyRec {
     bool sliding = false;
     bool slidingNext = false;
     bool refreshForces = true;
+    // Sleep delay bookkeeping (see applySleepPolicy).
+    float stillTime = 0.0f;
+    bool sleepHeld = false; // Box2D sleeping disabled on this body for now
+    bool inField = false;   // inside a field region this step
+    bool frozen = false;    // left the world: disabled until moved back
     float tangentSpeed = 0.0f; // conveyor surface speed of this body's shapes
     std::vector<Shape> shapes;     // local geometry, used by fluids/wind
     std::vector<b2ShapeId> shapeIds;
@@ -160,6 +172,12 @@ public:
     void addFieldForce(int index, ForceSource source, b2Vec2 force, b2Vec2 point);
     void addFieldTorque(int index, ForceSource source, float torque);
     void wakeAll();
+    // Field regions mark the bodies inside them each step (longer sleep delay).
+    void markInField(int index) { bodies_[size_t(index)].inField = true; }
+    // Wakes a body and restarts its sleep delay.
+    void wakeBody(int index);
+    // Restores sleep-delay time and the frozen flag of a rebuilt body.
+    void restoreBodyExtras(int index, const BodyState& s);
     // Width of the body's silhouette across `axis` (unit vector), per metre of depth.
     double silhouetteWidth(int index, b2Vec2 axis) const;
     // Records a force that Box2D applies itself (contacts, joints, gravity).
@@ -202,6 +220,9 @@ private:
     void refreshBodyState(BodyRec& b);
     void applySettings();
     void applyWorldFields();
+    void applySleepPolicy();
+    void applyWorldLimit();
+    void freeze(BodyRec& b);
     void ensureGrabJoint();
 
     WorldSettings settings_;
@@ -214,6 +235,7 @@ private:
     std::vector<int> freeBodies_;
     std::vector<int> charged_, magnets_, massive_;
     RestoreState::Grab grab_;
+    bool rebuilding_ = false; // World::build from a keyframe: runtimes must not wake bodies
     b2JointId grabJoint_ = b2_nullJointId; // rebuilt every step; capacity reserved at registration
     std::unordered_map<ItemId, int> bodyIndex_;
     std::vector<std::vector<b2ContactData>> contactScratch_; // one per worker

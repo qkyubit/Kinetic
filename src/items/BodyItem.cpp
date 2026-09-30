@@ -329,12 +329,13 @@ std::unique_ptr<ItemRuntime> BodyItemType::createRuntime(const ItemDef& def, Wor
     bd.gravityScale = float(def.d(idx_.gravityScale));
     bd.fixedRotation = def.b(idx_.fixedRotation);
     bd.isBullet = def.b(idx_.bullet);
-    if (const BodyState* st = restore ? restore->body(def.id) : nullptr) {
+    const BodyState* st = restore ? restore->body(def.id) : nullptr;
+    if (st) {
         bd.position = {st->px, st->py};
         bd.rotation = {st->qc, st->qs};
         bd.linearVelocity = {st->vx, st->vy};
         bd.angularVelocity = st->w;
-        bd.isAwake = st->awake != 0;
+        bd.isAwake = st->awake == 1;
     }
     const b2BodyId bid = b2CreateBody(world.id(), &bd);
 
@@ -400,6 +401,7 @@ std::unique_ptr<ItemRuntime> BodyItemType::createRuntime(const ItemDef& def, Wor
     rec.charge = float(def.d(idx_.charge));
     rec.dragCoefficient = float(def.d(idx_.dragCoefficient));
     customizeBody(def, world, index);
+    if (st) world.restoreBodyExtras(index, *st);
     return std::make_unique<BodyRuntime>(def.id, this, index);
 }
 
