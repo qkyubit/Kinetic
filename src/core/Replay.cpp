@@ -16,6 +16,9 @@ const char* typeName(LoggedCommand::Type t)
     case LoggedCommand::Type::Update: return "update";
     case LoggedCommand::Type::SetWorld: return "world";
     case LoggedCommand::Type::SetState: return "state";
+    case LoggedCommand::Type::Grab: return "grab";
+    case LoggedCommand::Type::GrabMove: return "grabMove";
+    case LoggedCommand::Type::Release: return "release";
     }
     return "";
 }
@@ -35,6 +38,11 @@ QByteArray replayToBytes(const ReplayData& r, const ViewState& view)
         o.insert(QStringLiteral("type"), QLatin1String(typeName(c.type)));
         if (c.type == LoggedCommand::Type::Remove) {
             o.insert(QStringLiteral("id"), double(c.id));
+        } else if (c.type == LoggedCommand::Type::Grab || c.type == LoggedCommand::Type::GrabMove ||
+                   c.type == LoggedCommand::Type::Release) {
+            o.insert(QStringLiteral("id"), double(c.id));
+            o.insert(QStringLiteral("anchor"), QJsonArray{c.v.x, c.v.y});
+            o.insert(QStringLiteral("target"), QJsonArray{c.pose.p.x, c.pose.p.y});
         } else if (c.type == LoggedCommand::Type::SetState) {
             o.insert(QStringLiteral("id"), double(c.id));
             o.insert(QStringLiteral("pose"), QJsonArray{c.pose.p.x, c.pose.p.y, c.pose.c, c.pose.s});
@@ -90,6 +98,15 @@ bool replayFromBytes(const QByteArray& bytes, ReplayFile& out, QString* error)
         if (type == QLatin1String("remove")) {
             c.type = LoggedCommand::Type::Remove;
             c.id = ItemId(o.value(QStringLiteral("id")).toDouble());
+        } else if (type == QLatin1String("grab") || type == QLatin1String("grabMove") || type == QLatin1String("release")) {
+            c.type = type == QLatin1String("grab")       ? LoggedCommand::Type::Grab
+                     : type == QLatin1String("grabMove") ? LoggedCommand::Type::GrabMove
+                                                         : LoggedCommand::Type::Release;
+            c.id = ItemId(o.value(QStringLiteral("id")).toDouble());
+            const QJsonArray an = o.value(QStringLiteral("anchor")).toArray(), ta = o.value(QStringLiteral("target")).toArray();
+            if (an.size() != 2 || ta.size() != 2) return fail(QStringLiteral("bad grab command"));
+            c.v = {an[0].toDouble(), an[1].toDouble()};
+            c.pose.p = {ta[0].toDouble(), ta[1].toDouble()};
         } else if (type == QLatin1String("state")) {
             c.type = LoggedCommand::Type::SetState;
             c.id = ItemId(o.value(QStringLiteral("id")).toDouble());

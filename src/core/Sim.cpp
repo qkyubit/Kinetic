@@ -144,6 +144,9 @@ void SimCore::apply(const LoggedCommand& c)
         world_->setWorldDef(*c.def);
         break;
     case LoggedCommand::Type::SetState: world_->setBodyState(c.id, c.pose, c.v, c.w); break;
+    case LoggedCommand::Type::Grab: world_->grab(c.id, c.v, c.pose.p); break;
+    case LoggedCommand::Type::GrabMove: world_->moveGrab(c.pose.p); break;
+    case LoggedCommand::Type::Release: world_->release(); break;
     }
 }
 

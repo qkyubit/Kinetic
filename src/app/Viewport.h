@@ -8,7 +8,9 @@
 
 #include "core/RenderBatch.h"
 
+#include <QElapsedTimer>
 #include <QRhiWidget>
+#include <QTimer>
 #include <rhi/qrhi.h>
 
 #include <memory>
@@ -23,7 +25,7 @@ class Analysis;
 class Viewport : public QRhiWidget, public SceneView {
     Q_OBJECT
 public:
-    enum class Tool { Select, Connect, Draw, Ruler, Protractor, Probe };
+    enum class Tool { Select, Connect, Draw, Ruler, Protractor, Probe, Grab };
     enum class Gizmo { Move, Rotate, Scale };
 
     Viewport(Document* doc, SimController* sim, QWidget* parent = nullptr);
@@ -103,6 +105,8 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent* e) override;
     void wheelEvent(QWheelEvent* e) override;
     void keyPressEvent(QKeyEvent* e) override;
+    void keyReleaseEvent(QKeyEvent* e) override;
+    void focusOutEvent(QFocusEvent* e) override;
     void dragEnterEvent(QDragEnterEvent* e) override;
     void dragMoveEvent(QDragMoveEvent* e) override;
     void dragLeaveEvent(QDragLeaveEvent* e) override;
@@ -114,7 +118,7 @@ protected:
 private:
     enum class Drag {
         None, Pending, Pan, BoxSelect, MoveItems, GizmoX, GizmoY, GizmoFree, GizmoRotate, GizmoScaleX,
-        GizmoScaleY, GizmoScaleU, Stroke, Ruler, Protractor
+        GizmoScaleY, GizmoScaleU, Stroke, Ruler, Protractor, Grab
     };
 
     void updateTheme();
@@ -165,6 +169,14 @@ private:
     std::vector<ItemDef> dragStartLive_;
     std::vector<char> dragLiveBody_;
     std::vector<std::pair<ItemId, Pose>> heldBodies_; // re-pinned every frame while running
+    // Grab tool: the held body and the grip point in its frame.
+    ItemId grabItem_ = 0;
+    Vec2 grabLocal_;
+    // WASD camera panning (bit per held key), advanced by a timer only while held.
+    int panKeys_ = 0;
+    QTimer* panTimer_ = nullptr;
+    QElapsedTimer panClock_;
+    void panStep();
     void captureDragStart();
     QList<ItemId> preBoxSelection_;
     Vec2 boxA_, boxB_;

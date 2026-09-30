@@ -92,6 +92,7 @@ MainWindow::MainWindow()
         protractorAct_->setChecked(t == Viewport::Tool::Protractor);
         drawAct_->setChecked(t == Viewport::Tool::Draw);
         probeAct_->setChecked(t == Viewport::Tool::Probe);
+        grabAct_->setChecked(t == Viewport::Tool::Grab);
         viewport_->update();
     });
 
@@ -184,15 +185,19 @@ void MainWindow::buildActions()
 
     auto* tools = new QActionGroup(this);
     selectToolAct_ = act(tr("&Select"), QStringLiteral("edit-select"), fb, QKeySequence(Qt::Key_Q));
-    moveAct_ = act(tr("&Move Gizmo"), QStringLiteral("transform-move"), fb, QKeySequence(Qt::Key_W));
+    // W, A, S and D are left free for panning the camera in the viewport.
+    moveAct_ = act(tr("&Move Gizmo"), QStringLiteral("transform-move"), fb, QKeySequence(Qt::Key_T));
     rotateAct_ = act(tr("&Rotate Gizmo"), QStringLiteral("transform-rotate"), fb, QKeySequence(Qt::Key_E));
     scaleAct_ = act(tr("S&cale Gizmo"), QStringLiteral("transform-scale"), fb, QKeySequence(Qt::Key_R));
-    drawAct_ = act(tr("&Draw Shape"), QStringLiteral("draw-freehand"), fb, QKeySequence(Qt::Key_D));
+    drawAct_ = act(tr("&Draw Shape"), QStringLiteral("draw-freehand"), fb, QKeySequence(Qt::Key_B));
     rulerAct_ = act(tr("R&uler"), QStringLiteral("tool-measure"), fb, QKeySequence(Qt::Key_M));
-    protractorAct_ = act(tr("&Protractor"), QStringLiteral("draw-halfcircle1"), fb, QKeySequence(Qt::Key_A));
+    protractorAct_ = act(tr("&Protractor"), QStringLiteral("draw-halfcircle1"), fb, QKeySequence(Qt::Key_O));
     probeAct_ = act(tr("Pro&be"), QStringLiteral("crosshairs"), fb, QKeySequence(Qt::Key_P));
     probeAct_->setToolTip(tr("Hover over a body to read its velocity, acceleration and forces"));
-    for (QAction* a : {selectToolAct_, drawAct_, rulerAct_, protractorAct_, probeAct_}) {
+    grabAct_ = act(tr("&Grab"), QStringLiteral("transform-browse"), fb, QKeySequence(Qt::Key_H));
+    grabAct_->setToolTip(tr("Grab bodies while simulating: they keep their physics, swing, spin, push other bodies "
+                            "and fly off when you let go (H)"));
+    for (QAction* a : {selectToolAct_, drawAct_, rulerAct_, protractorAct_, probeAct_, grabAct_}) {
         a->setCheckable(true);
         tools->addAction(a);
     }
@@ -209,6 +214,10 @@ void MainWindow::buildActions()
     connect(rulerAct_, &QAction::triggered, this, [this] { viewport_->setTool(Viewport::Tool::Ruler); });
     connect(protractorAct_, &QAction::triggered, this, [this] { viewport_->setTool(Viewport::Tool::Protractor); });
     connect(probeAct_, &QAction::triggered, this, [this] { viewport_->setTool(Viewport::Tool::Probe); });
+    connect(grabAct_, &QAction::triggered, this, [this] {
+        viewport_->setTool(Viewport::Tool::Grab);
+        viewport_->setFocus();
+    });
     connect(moveAct_, &QAction::triggered, this, [this] {
         viewport_->setTool(Viewport::Tool::Select);
         viewport_->setGizmo(Viewport::Gizmo::Move);
@@ -256,7 +265,7 @@ void MainWindow::buildActions()
     main->addActions({undoAct_, redoAct_});
     auto* toolBar = addToolBar(tr("Tools"));
     toolBar->setObjectName(QStringLiteral("toolsToolBar"));
-    toolBar->addActions({selectToolAct_, moveAct_, rotateAct_, scaleAct_});
+    toolBar->addActions({selectToolAct_, grabAct_, moveAct_, rotateAct_, scaleAct_});
     toolBar->addSeparator();
     toolBar->addActions({drawAct_, rulerAct_, protractorAct_, probeAct_});
     toolBar->addSeparator();
@@ -344,7 +353,7 @@ void MainWindow::buildMenus()
     simMenu->addActions({playback_->recordAction(), playback_->rewindAction()});
 
     QMenu* tools = menuBar()->addMenu(tr("&Tools"));
-    tools->addActions({selectToolAct_, moveAct_, rotateAct_, scaleAct_});
+    tools->addActions({selectToolAct_, grabAct_, moveAct_, rotateAct_, scaleAct_});
     tools->addSeparator();
     tools->addActions({drawAct_, rulerAct_, protractorAct_, probeAct_});
 

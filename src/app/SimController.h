@@ -43,6 +43,10 @@ public:
     void loadReplay(const ReplayData& r);
     // Moves live bodies (dragging while simulating); the document is untouched.
     void setBodyStates(const std::vector<std::pair<ItemId, Pose>>& poses);
+    // Grab tool (the body keeps its physics). `local` is in the body frame.
+    void grab(ItemId id, Vec2 local, Vec2 target);
+    void moveGrab(Vec2 target);
+    void release();
 
 signals:
     void snapshotUpdated();

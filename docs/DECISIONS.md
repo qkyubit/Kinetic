@@ -329,3 +329,16 @@ stays under the cursor; on release it continues from rest. The commands are
 in the edit log, so scrubbing and replay files reproduce drags exactly. Live
 drags are not undo steps (the timeline serves that purpose). Non-body items
 (fields, liquids, optics) and size changes still edit the document.
+
+**The grab tool is a Box2D mouse joint.** A soft spring (5 Hz, damping ratio
+0.7, force capped at 150× the body's weight) pulls the grip point towards the
+cursor, so the held body keeps full dynamics: it swings and spins about the
+grip, collides with and pushes other bodies, and releasing it simply removes
+the joint, leaving its momentum (throwing). Grab, move and release are logged
+commands and the grab is part of keyframe state, so scrubbing and replay files
+reproduce throws exactly. The joint's force is tagged "Hand" in the force
+breakdown. Grabbing starts the simulation if it is paused.
+
+**WASD pans the camera**, so the gizmo/tool shortcuts that used W, A and D
+moved: Move gizmo T, Draw B, Protractor O (Grab is H). Panning runs on a timer
+only while a key is held, so idle CPU stays at zero.

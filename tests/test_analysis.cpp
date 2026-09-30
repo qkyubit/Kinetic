@@ -104,6 +104,65 @@ private slots:
         QCOMPARE(d->v(d->type->positionIndex()), (Vec2{0, 5}));
         sim.reset();
     }
+
+    void grabToolThrows()
+    {
+        SceneBuilder sb;
+        sb.setWorld("gravity", Vec2{0, 0});
+        sb.setWorld("sleep", false);
+        const ItemId box = sb.add("body.box", {0, 4}, {{"width", 1.0}, {"height", 1.0}});
+        Document doc;
+        doc.reset(sb.scene);
+        SimController sim(&doc);
+        Viewport view(&doc, &sim);
+        view.resize(800, 600);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setCamera({0, 4}, 50);
+        view.setTool(Viewport::Tool::Grab);
+        const QPoint p0 = view.toScreen({0.3, 4.3}).toPoint(); // off-centre grip
+        QTest::mousePress(&view, Qt::LeftButton, {}, p0);
+        QTRY_VERIFY_WITH_TIMEOUT(sim.running(), 2000); // grabbing starts the simulation
+        // Sweep right quickly, then let go mid-swing.
+        for (int i = 1; i <= 20; ++i) {
+            const QPointF p = QPointF(p0 + QPoint(12 * i, 0));
+            QMouseEvent move(QEvent::MouseMove, p, view.mapToGlobal(p), Qt::NoButton, Qt::LeftButton, {});
+            QApplication::sendEvent(&view, &move);
+            QTest::qWait(15);
+        }
+        QTest::mouseRelease(&view, Qt::LeftButton, {}, p0 + QPoint(240, 0));
+        QTest::qWait(300);
+        QVERIFY(sim.live());
+        const BodySnap* b = sim.bodySnap(box);
+        qInfo("after release: x = %.2f, v = (%.2f, %.2f), w = %.2f", double(b->x), double(b->vx), double(b->vy), double(b->w));
+        QVERIFY(b->x > 1.0);                   // dragged right
+        QVERIFY(std::hypot(b->vx, b->vy) > 1); // still moving: thrown
+        QVERIFY(std::abs(b->w) > 0.1);         // off-centre grip made it spin
+        sim.reset();
+    }
+
+    void wasdPansCamera()
+    {
+        Document doc;
+        doc.reset(SceneData::empty());
+        SimController sim(&doc);
+        Viewport view(&doc, &sim);
+        view.resize(800, 600);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setCamera({0, 0}, 50);
+        view.setFocus();
+        QTest::keyPress(&view, Qt::Key_D);
+        QTest::keyPress(&view, Qt::Key_W);
+        QTest::qWait(250);
+        QTest::keyRelease(&view, Qt::Key_D);
+        QTest::keyRelease(&view, Qt::Key_W);
+        const Vec2 c = view.center();
+        QTest::qWait(100);
+        QCOMPARE(view.center(), c); // stops when released
+        qInfo("camera moved to (%.2f, %.2f) m", c.x, c.y);
+        QVERIFY(c.x > 1.0 && c.y > 1.0); // 600 px/s at 50 px/m for 0.25 s = 3 m
+    }
 };
 
 QTEST_MAIN(TestAnalysis)

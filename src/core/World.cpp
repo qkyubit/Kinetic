@@ -196,6 +196,9 @@ void World::build(const std::vector<ItemDefPtr>& defs, const RestoreState* resto
             std::copy_n(restore->sleepForces.begin() + sf.begin, b.forceCount, b.lastForces);
         }
     }
+    grabJoint_ = b2_nullJointId; // destroyed with the bodies
+    grab_ = restore ? restore->grab : RestoreState::Grab{};
+    ensureGrabJoint();
     structureVersion_ = nextStructureVersion();
     baselineValid_ = false;
     statesDirty_ = true;
@@ -269,6 +272,7 @@ void World::capture(RestoreState& out) const
 {
     out.bodies.clear();
     out.custom.clear();
+    out.grab = grab_;
     out.sleepIndex.clear();
     out.sleepForces.clear();
     for (const BodyRec& b : bodies_) {
@@ -316,6 +320,54 @@ void World::setBodyState(ItemId item, const Pose& p, Vec2 v, double w)
     b.prevV = b.v;
     b.prevW = b.w;
     statesDirty_ = true;
+}
+
+void World::ensureGrabJoint()
+{
+    if (b2Joint_IsValid(grabJoint_)) b2DestroyJoint(grabJoint_);
+    grabJoint_ = b2_nullJointId;
+    if (!grab_.item) return;
+    const int i = bodyIndex(grab_.item);
+    if (i < 0 || bodies_[size_t(i)].type != b2_dynamicBody) {
+        grab_ = {};
+        return;
+    }
+    const BodyRec& b = bodies_[size_t(i)];
+    b2MouseJointDef jd = b2DefaultMouseJointDef();
+    jd.bodyIdA = ground_;
+    jd.bodyIdB = b.id;
+    // The joint anchors the body at its initial target, so create it at the
+    // anchor's current position and then aim it at the real target.
+    jd.target = b2Body_GetWorldPoint(b.id, {float(grab_.local.x), float(grab_.local.y)});
+    jd.hertz = 5.0f;
+    jd.dampingRatio = 0.7f;
+    jd.maxForce = 150.0f * std::max(b.mass, 1e-3f) * std::max(9.81f, float(length(settings_.gravity)));
+    grabJoint_ = b2CreateMouseJoint(id_, &jd);
+    b2MouseJoint_SetTarget(grabJoint_, {float(grab_.target.x), float(grab_.target.y)});
+    b2Body_SetAwake(b.id, true);
+}
+
+void World::grab(ItemId item, Vec2 local, Vec2 target)
+{
+    grab_ = {item, local, target};
+    ensureGrabJoint();
+}
+
+void World::moveGrab(Vec2 target)
+{
+    if (!grab_.item) return;
+    grab_.target = target;
+    if (!b2Joint_IsValid(grabJoint_)) return; // recreated at the next step
+    b2MouseJoint_SetTarget(grabJoint_, {float(target.x), float(target.y)});
+    b2Body_SetAwake(b2Joint_GetBodyB(grabJoint_), true);
+}
+
+// The joint goes; the body keeps its velocity, so a moving body is thrown.
+void World::release()
+{
+    if (b2Joint_IsValid(grabJoint_)) b2DestroyJoint(grabJoint_);
+    grabJoint_ = b2_nullJointId;
+    grab_ = {};
 }
 
 int World::registerBody(ItemId item, b2BodyId id)
@@ -626,6 +678,8 @@ void World::step()
     applyWorldFields();
     for (Entry& e : items_)
         if (e.rt) e.rt->preStep(*this);
+    // A structural edit may have rebuilt the held body (and its joint).
+    if (grab_.item && !b2Joint_IsValid(grabJoint_)) ensureGrabJoint();
 
     b2World_Step(id_, h, settings_.substeps);
 
@@ -638,6 +692,15 @@ void World::step()
 
     computeContactForces();
     dispatchSensorEvents();
+    if (grab_.item && b2Joint_IsValid(grabJoint_)) {
+        const int gi = bodyIndex(grab_.item);
+        if (gi >= 0 && bodies_[size_t(gi)].refreshForces) {
+            const BodyRec& b = bodies_[size_t(gi)];
+            const b2Vec2 f = b2Joint_GetConstraintForce(grabJoint_);
+            const b2Vec2 at = b2Body_GetWorldPoint(b.id, {float(grab_.local.x), float(grab_.local.y)});
+            record(gi, ForceSource::Hand, f, b2Cross(b2Sub(at, b.com), f));
+        }
+    }
 
     for (Entry& e : items_)
         if (e.rt) e.rt->postStep(*this);

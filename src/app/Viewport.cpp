@@ -7,6 +7,7 @@
 #include "core/Geometry.h"
 
 #include <QElapsedTimer>
+#include <QGuiApplication>
 #include <QFile>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -185,7 +186,7 @@ void Viewport::setTool(Tool t)
         measure_.protractor = false;
         measure_.protractorPoints = 0;
     }
-    setCursor(t == Tool::Select ? Qt::ArrowCursor : Qt::CrossCursor);
+    setCursor(t == Tool::Select ? Qt::ArrowCursor : (t == Tool::Grab ? Qt::OpenHandCursor : Qt::CrossCursor));
     emit toolChanged();
     update();
 }
@@ -212,6 +213,8 @@ void Viewport::beginDraw(const ItemType* type)
 
 void Viewport::cancelTool()
 {
+    if (drag_ == Drag::Grab) sim_->release();
+    grabItem_ = 0;
     drag_ = Drag::None;
     if (tool_ != Tool::Select) setTool(Tool::Select);
     update();
@@ -241,6 +244,9 @@ QString Viewport::statusHint() const
     case Tool::Ruler: return tr("Ruler: drag to measure a distance (Esc to finish)");
     case Tool::Protractor: return tr("Protractor: click the vertex, then one point on each arm (Esc to finish)");
     case Tool::Probe: return tr("Probe: hover over a body to read its velocity and forces (Esc to finish)");
+    case Tool::Grab:
+        return tr("Grab: drag a body by any point; it keeps its physics, swings, spins and pushes things. Let go "
+                  "while moving to throw it (Esc to finish)");
     }
     return {};
 }
@@ -548,6 +554,27 @@ void Viewport::mousePressEvent(QMouseEvent* e)
         return;
     }
     case Tool::Probe: return;
+    case Tool::Grab: {
+        // Only dynamic bodies can be held; the grip is where the cursor is.
+        const ItemId hit = pick(e->position(), true);
+        const ItemDef* d = hit ? doc_->item(hit) : nullptr;
+        if (!d || d->type->kind() != ItemKind::Body) return;
+        const bool dynamic = sim_->live() && bodySnap(hit)
+                                 ? bodySnap(hit)->bodyType == b2_dynamicBody
+                                 : d->type->schema().indexOf(QStringLiteral("bodyType")) >= 0 &&
+                                       d->i(d->type->schema().indexOf(QStringLiteral("bodyType"))) == b2_dynamicBody;
+        if (!dynamic) return;
+        Pose p;
+        if (!pose(hit, p)) return;
+        grabItem_ = hit;
+        grabLocal_ = p.inverse(pressWorld_);
+        sim_->grab(hit, grabLocal_, pressWorld_);
+        if (!sim_->running()) sim_->play();
+        drag_ = Drag::Grab;
+        setCursor(Qt::ClosedHandCursor);
+        update();
+        return;
+    }
     }
 }
 
@@ -611,6 +638,10 @@ void Viewport::mouseMoveEvent(QMouseEvent* e)
         measure_.b = snapPoint(cursorWorld_);
         update();
         return;
+    case Drag::Grab:
+        sim_->moveGrab(cursorWorld_);
+        update();
+        return;
     default: break;
     }
 
@@ -625,6 +656,12 @@ void Viewport::mouseMoveEvent(QMouseEvent* e)
     } else if (tool_ == Tool::Protractor && measure_.protractorPoints == 2) {
         measure_.c = snapPoint(cursorWorld_);
         update();
+    } else if (tool_ == Tool::Grab) {
+        const ItemId h = pick(pos, true);
+        if (h != hover_) {
+            hover_ = h;
+            update();
+        }
     } else if (tool_ == Tool::Connect || tool_ == Tool::Draw || tool_ == Tool::Probe) {
         if (tool_ == Tool::Probe) {
             const ItemId h = pick(pos, true);
@@ -653,6 +690,12 @@ void Viewport::mouseReleaseEvent(QMouseEvent* e)
     case Drag::GizmoScaleY:
     case Drag::GizmoScaleU: doc_->endContinuousEdit(); break;
     case Drag::BoxSelect: update(); break;
+    case Drag::Grab:
+        sim_->release(); // the body keeps its velocity: letting go while moving throws it
+        grabItem_ = 0;
+        setCursor(Qt::OpenHandCursor);
+        update();
+        break;
     case Drag::Stroke: {
         // A click without dragging switches to click-to-place polygon mode.
         const double moved = std::hypot(e->position().x() - pressScreen_.x(), e->position().y() - pressScreen_.y());
@@ -686,8 +729,68 @@ void Viewport::wheelEvent(QWheelEvent* e)
     e->accept();
 }
 
+namespace {
+int panBit(int key)
+{
+    switch (key) {
+    case Qt::Key_W: return 1;
+    case Qt::Key_A: return 2;
+    case Qt::Key_S: return 4;
+    case Qt::Key_D: return 8;
+    default: return 0;
+    }
+}
+} // namespace
+
+void Viewport::panStep()
+{
+    const double dt = std::min(panClock_.restart() / 1000.0, 0.1);
+    if (!panKeys_) {
+        panTimer_->stop();
+        return;
+    }
+    const double px = (QGuiApplication::keyboardModifiers() & Qt::ShiftModifier ? 1800.0 : 600.0) * dt; // pixels this tick
+    Vec2 d;
+    if (panKeys_ & 1) d.y += 1;
+    if (panKeys_ & 2) d.x -= 1;
+    if (panKeys_ & 4) d.y -= 1;
+    if (panKeys_ & 8) d.x += 1;
+    setCamera(center_ + d * (px / ppm_), ppm_);
+}
+
+void Viewport::keyReleaseEvent(QKeyEvent* e)
+{
+    if (const int bit = panBit(e->key()); bit && !e->isAutoRepeat()) {
+        panKeys_ &= ~bit;
+        return;
+    }
+    QRhiWidget::keyReleaseEvent(e);
+}
+
+void Viewport::focusOutEvent(QFocusEvent* e)
+{
+    panKeys_ = 0; // keys released elsewhere never reach us
+    QRhiWidget::focusOutEvent(e);
+}
+
 void Viewport::keyPressEvent(QKeyEvent* e)
 {
+    // WASD pans the camera (Shift: faster) while held.
+    if (const int bit = panBit(e->key()); bit && !(e->modifiers() & ~(Qt::ShiftModifier | Qt::KeypadModifier))) {
+        if (!e->isAutoRepeat() && !(panKeys_ & bit)) {
+            if (!panKeys_) {
+                if (!panTimer_) {
+                    panTimer_ = new QTimer(this);
+                    panTimer_->setTimerType(Qt::PreciseTimer);
+                    connect(panTimer_, &QTimer::timeout, this, &Viewport::panStep);
+                }
+                panClock_.start();
+                panTimer_->start(8);
+            }
+            panKeys_ |= bit;
+        }
+        return;
+    }
     switch (e->key()) {
     case Qt::Key_Escape:
         if (tool_ == Tool::Connect && connectHasA_) {
@@ -914,7 +1017,7 @@ void Viewport::drawItems()
             continue;
         DrawContext ctx{batch_, theme_, *this};
         ctx.pxPerM = ppm_;
-        ctx.selected = selected_.count(d.id) > 0 || (hover_ == d.id && tool_ == Tool::Select);
+        ctx.selected = selected_.count(d.id) > 0 || (hover_ == d.id && (tool_ == Tool::Select || tool_ == Tool::Grab));
         ctx.simActive = live;
         ctx.time = time;
         ctx.body = bs;
@@ -991,6 +1094,15 @@ void Viewport::drawSelectionAndGizmo()
 void Viewport::drawToolPreview()
 {
     const Color hl = theme_.highlight;
+    if (drag_ == Drag::Grab && grabItem_) {
+        Pose p;
+        if (pose(grabItem_, p)) {
+            const Vec2 grip = p.apply(grabLocal_);
+            batch_.line(Layer::Overlay, grip, cursorWorld_, 1.5f, hl.withAlpha(200));
+            batch_.disc(Layer::Overlay, grip, 4.0 / ppm_, hl, hl);
+            batch_.circleOutline(Layer::Overlay, cursorWorld_, 6.0 / ppm_, hl, 1.5f);
+        }
+    }
     if (tool_ == Tool::Connect && connectHasA_) {
         Vec2 a = connectA_;
         batch_.dashed(Layer::Overlay, a, cursorWorld_, 1.5f, hl);

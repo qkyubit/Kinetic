@@ -24,7 +24,9 @@ namespace kn {
 struct LoggedCommand {
     // SetState moves a live body (dragging while simulating) without
     // touching the document's initial conditions.
-    enum class Type : uint8_t { Add, Remove, Update, SetWorld, SetState };
+    // Grab/GrabMove/Release drive the grab tool (id, v = anchor in the body
+    // frame, pose.p = target).
+    enum class Type : uint8_t { Add, Remove, Update, SetWorld, SetState, Grab, GrabMove, Release };
     uint64_t step = 0;
     Type type = Type::Update;
     ItemDefPtr def;   // Add, Update, SetWorld

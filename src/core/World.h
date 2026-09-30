@@ -85,6 +85,12 @@ public:
     void setWorldDef(const ItemDef& worldDef);
     // Teleports a body (origin pose) and sets its velocity; wakes it.
     void setBodyState(ItemId item, const Pose& pose, Vec2 v, double w);
+    // Grab tool: pull a body's anchor point (body frame) towards a target with a
+    // soft spring (Box2D mouse joint); the body keeps its dynamics.
+    void grab(ItemId item, Vec2 local, Vec2 target);
+    void moveGrab(Vec2 target);
+    void release();
+    const RestoreState::Grab& grabState() const { return grab_; }
     void capture(RestoreState& out) const;
     const std::vector<ItemDefPtr>& defs() const { return defs_; }
     const ItemDef* def(ItemId id) const;
@@ -196,6 +202,7 @@ private:
     void refreshBodyState(BodyRec& b);
     void applySettings();
     void applyWorldFields();
+    void ensureGrabJoint();
 
     WorldSettings settings_;
     b2WorldId id_ = b2_nullWorldId;
@@ -205,7 +212,9 @@ private:
     std::unordered_map<ItemId, size_t> itemIndex_;
     std::vector<BodyRec> bodies_;
     std::vector<int> freeBodies_;
-    std::vector<int> charged_, magnets_, massive_; // rebuilt every step; capacity reserved at registration
+    std::vector<int> charged_, magnets_, massive_;
+    RestoreState::Grab grab_;
+    b2JointId grabJoint_ = b2_nullJointId; // rebuilt every step; capacity reserved at registration
     std::unordered_map<ItemId, int> bodyIndex_;
     std::vector<std::vector<b2ContactData>> contactScratch_; // one per worker
     std::vector<QString> constantNames_;

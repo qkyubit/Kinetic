@@ -190,6 +190,34 @@ void SimController::setBodyStates(const std::vector<std::pair<ItemId, Pose>>& po
     }
 }
 
+void SimController::grab(ItemId id, Vec2 local, Vec2 target)
+{
+    ensureStarted();
+    LoggedCommand c;
+    c.type = LoggedCommand::Type::Grab;
+    c.id = id;
+    c.v = local;
+    c.pose.p = target;
+    postEdit(std::move(c));
+}
+
+void SimController::moveGrab(Vec2 target)
+{
+    if (!active_) return;
+    LoggedCommand c;
+    c.type = LoggedCommand::Type::GrabMove;
+    c.pose.p = target;
+    postEdit(std::move(c));
+}
+
+void SimController::release()
+{
+    if (!active_) return;
+    LoggedCommand c;
+    c.type = LoggedCommand::Type::Release;
+    postEdit(std::move(c));
+}
+
 void SimController::onNotify()
 {
     const bool fresh = sim_.update();

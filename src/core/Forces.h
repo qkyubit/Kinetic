@@ -27,6 +27,7 @@ enum class ForceSource : uint8_t {
     Explosion,
     Equation,
     Damping,
+    Hand,
     Count
 };
 
@@ -53,6 +54,7 @@ inline const char* forceSourceName(ForceSource s)
     case ForceSource::Explosion: return "Explosion";
     case ForceSource::Equation: return "Equation";
     case ForceSource::Damping: return "Damping";
+    case ForceSource::Hand: return "Hand";
     case ForceSource::Count: break;
     }
     return "?";
@@ -80,6 +82,7 @@ inline Color forceSourceColor(ForceSource s)
         0xd63031, // explosion
         0x00b894, // equation
         0xb2bec3, // damping
+        0xfd79a8, // hand (grab tool)
     };
     const int i = int(s);
     return Color::fromRgb(i >= 0 && i < kForceSourceCount ? table[i] : 0x999999);

@@ -51,7 +51,11 @@ search by name or tag), the **Explorer** (tree, visibility, locking, groups),
 **Properties** (every property editable, most of them live while the
 simulation runs), **Analysis** (vectors, trails, energy, field overlay),
 **Constants** (sliders for named constants) and a hidden **Trigger Log**
-(View menu). The playback bar has Play/Pause (Space), Step, Reset, recording,
+(View menu). **Grab** (H) picks up bodies while simulating: they keep their
+physics, swing and spin around the grip, push other bodies, and fly off with
+their momentum when you let go. WASD pans the camera (Shift: faster); other
+tools: Select Q, Move/Rotate/Scale gizmos T/E/R, Draw B, Ruler M, Protractor
+O, Probe P. The playback bar has Play/Pause (Space), Step, Reset, recording,
 speed 0.1×–10× and a timeline you can scrub; editing while scrubbed back
 branches the timeline. **File → Save Replay** stores the initial scene and
 every edit, and plays back bit-identically. Graphs: select bodies and use

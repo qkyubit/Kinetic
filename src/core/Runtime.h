@@ -39,6 +39,14 @@ struct RestoreState {
     };
     std::vector<SleepForces> sleepIndex;
     std::vector<ForceEntry> sleepForces;
+    // Grab tool: a body held by the cursor (item 0: none).
+    struct Grab {
+        ItemId item = 0;
+        Vec2 local;  // anchor in the body's frame (origin)
+        Vec2 target; // world point the anchor is pulled towards
+        bool operator==(const Grab&) const = default;
+    };
+    Grab grab;
 
     void sort()
     {
@@ -74,7 +82,7 @@ inline bool operator==(const BodyState& a, const BodyState& b)
 
 inline bool RestoreState::operator==(const RestoreState& o) const
 {
-    if (bodies.size() != o.bodies.size() || custom.size() != o.custom.size()) return false;
+    if (bodies.size() != o.bodies.size() || custom.size() != o.custom.size() || !(grab == o.grab)) return false;
     for (size_t i = 0; i < bodies.size(); ++i)
         if (bodies[i].first != o.bodies[i].first || !(bodies[i].second == o.bodies[i].second)) return false;
     for (size_t i = 0; i < custom.size(); ++i)

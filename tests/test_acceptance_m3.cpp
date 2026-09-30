@@ -213,6 +213,113 @@ private slots:
         QVERIFY(again == live);
     }
 
+    void grabToolDragsSpinsPushesAndThrows()
+    {
+        SceneBuilder sb;
+        sb.setWorld("gravity", Vec2{0, 0});
+        sb.setWorld("sleep", false);
+        const ItemId held = sb.add("body.box", {0, 0}, {{"width", 1.0}, {"height", 0.4}});
+        const ItemId other = sb.add("body.box", {4, 0}, {{"width", 0.5}, {"height", 0.5}});
+        SimCore core;
+        core.start(sb.start(true));
+        auto cmd = [&](LoggedCommand::Type t, Vec2 target) {
+            LoggedCommand c;
+            c.type = t;
+            c.id = held;
+            c.v = {0.45, 0.0}; // grip near the right end: pulling sideways spins it
+            c.pose.p = target;
+            core.edit(c);
+        };
+        Snapshot s;
+        cmd(LoggedCommand::Type::Grab, {0.45, 0});
+        double maxSpin = 0;
+        // Sweep the cursor up and then right at 6 m/s for 1.5 s.
+        for (int i = 1; i <= 180; ++i) {
+            const double t = i / 120.0;
+            cmd(LoggedCommand::Type::GrabMove, t < 0.5 ? Vec2{0.45, 6 * t} : Vec2{0.45 + 6 * (t - 0.5), 3});
+            core.advance();
+            core.writeSnapshot(s);
+            maxSpin = std::max(maxSpin, std::abs(double(body(s, held)->w)));
+        }
+        const BodySnap* h = body(s, held);
+        double fy = 0;
+        qInfo("grab: held box at (%.2f, %.2f), v = (%.2f, %.2f), max spin %.2f rad/s, hand force %.0f N", double(h->x), double(h->y),
+              double(h->vx), double(h->vy), maxSpin, forceOf(*h, ForceSource::Hand, &fy));
+        QVERIFY(maxSpin > 1.0);                   // off-centre pull spins it
+        QVERIFY(forceOf(*h, ForceSource::Hand) > 0); // tagged in the force breakdown
+        QVERIFY(h->vx > 3.0);                     // following the cursor
+        // Release while moving: momentum is kept (no gravity, nothing in the way above).
+        const Vec2 v0{h->vx, h->vy};
+        cmd(LoggedCommand::Type::Release, {});
+        for (int i = 0; i < 60; ++i) core.advance();
+        core.writeSnapshot(s);
+        qInfo("thrown: v = (%.2f, %.2f) 0.5 s after release (was (%.2f, %.2f))", double(body(s, held)->vx), double(body(s, held)->vy),
+              v0.x, v0.y);
+        QVERIFY(std::abs(body(s, held)->vx - v0.x) < 1e-3 && std::abs(body(s, held)->vy - v0.y) < 1e-3);
+        QCOMPARE(forceOf(*body(s, held), ForceSource::Hand), 0.0);
+
+        // Scrub and replay reproduce the whole interaction.
+        RestoreState live, again;
+        core.world()->capture(live);
+        core.scrubTo(45);
+        core.scrubTo(core.recorder().head);
+        core.world()->capture(again);
+        QVERIFY(again == live);
+        ReplayFile rf;
+        QVERIFY(replayFromBytes(replayToBytes(core.exportReplay(), {}), rf, nullptr));
+        SimStart st;
+        st.items = rf.replay.items;
+        st.world = rf.replay.world;
+        st.log = rf.replay.log;
+        st.headStep = rf.replay.headStep;
+        SimCore replay;
+        replay.start(st);
+        while (replay.step() < rf.replay.headStep) replay.advance();
+        replay.world()->capture(again);
+        QVERIFY(again == live);
+        Q_UNUSED(other);
+    }
+
+    void grabToolPushesAndHolds()
+    {
+        // Dragging a held box into another pushes it; holding still under
+        // gravity the hand carries the weight.
+        SceneBuilder sb;
+        sb.setWorld("sleep", false);
+        sb.add("body.ground", {0, -0.5}, {{"width", 40.0}});
+        const ItemId held = sb.add("body.box", {0, 0.25}, {{"width", 0.5}, {"height", 0.5}});
+        const ItemId other = sb.add("body.box", {2, 0.25}, {{"width", 0.5}, {"height", 0.5}});
+        SimCore core;
+        core.start(sb.start());
+        auto cmd = [&](LoggedCommand::Type t, Vec2 target) {
+            LoggedCommand c;
+            c.type = t;
+            c.id = held;
+            c.v = {0, 0};
+            c.pose.p = target;
+            core.edit(c);
+        };
+        cmd(LoggedCommand::Type::Grab, {0, 0.25});
+        for (int i = 1; i <= 240; ++i) {
+            cmd(LoggedCommand::Type::GrabMove, {std::min(4.0, 3.0 * i / 120.0), 0.25});
+            core.advance();
+        }
+        Snapshot s;
+        core.writeSnapshot(s);
+        qInfo("push: other box moved to x = %.2f", double(body(s, other)->x));
+        QVERIFY(body(s, other)->x > 4.0);
+        // Lift and hold still for 3 s.
+        cmd(LoggedCommand::Type::GrabMove, {0, 3});
+        for (int i = 0; i < 360; ++i) core.advance();
+        core.writeSnapshot(s);
+        const BodySnap* h = body(s, held);
+        double fy = 0;
+        forceOf(*h, ForceSource::Hand, &fy);
+        const double mg = h->mass * 9.81;
+        qInfo("hold: hand force %.2f N vs weight %.2f N", fy, mg);
+        QVERIFY(std::abs(fy - mg) / mg < 0.02);
+    }
+
     void replayMemory()
     {
         // 500 bodies for 10 minutes at 120 Hz, recording on.
