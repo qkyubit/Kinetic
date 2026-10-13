@@ -68,6 +68,7 @@ Viewport::Viewport(Document* doc, SimController* sim, QWidget* parent) : QRhiWid
     });
     connect(doc_, &Document::sceneReset, this, [this] {
         cancelTool();
+        clearMeasurements();
         setCamera(doc_->scene().view.center, doc_->scene().view.pixelsPerMetre);
     });
     connect(sim_, &SimController::snapshotUpdated, this, [this, refresh] {
@@ -181,11 +182,8 @@ void Viewport::setTool(Tool t)
     connectHasA_ = false;
     stroke_.clear();
     polygonMode_ = false;
-    if (t != Tool::Ruler) measure_.ruler = false;
-    if (t != Tool::Protractor) {
-        measure_.protractor = false;
-        measure_.protractorPoints = 0;
-    }
+    measuring_ = false;
+    hoverSnap_ = {};
     setCursor(t == Tool::Select ? Qt::ArrowCursor : (t == Tool::Grab ? Qt::OpenHandCursor : Qt::CrossCursor));
     emit toolChanged();
     update();
@@ -241,8 +239,12 @@ QString Viewport::statusHint() const
     case Tool::Draw:
         return polygonMode_ ? tr("Click to add vertices; double-click or Enter to finish, Esc to cancel")
                             : tr("Drag to draw an outline, or click to place polygon vertices (Esc to cancel)");
-    case Tool::Ruler: return tr("Ruler: drag to measure a distance (Esc to finish)");
-    case Tool::Protractor: return tr("Protractor: click the vertex, then one point on each arm (Esc to finish)");
+    case Tool::Ruler:
+        return tr("Ruler: drag between two points; snaps to corners, centres and edges, and follows bodies. Shift: 15° "
+                  "steps. Backspace removes the last measurement (Esc to finish)");
+    case Tool::Protractor:
+        return tr("Protractor: click the vertex, then a point on each arm; snaps like the ruler. Shift: 15° steps. "
+                  "Backspace removes the last measurement (Esc to finish)");
     case Tool::Probe: return tr("Probe: hover over a body to read its velocity and forces (Esc to finish)");
     case Tool::Grab:
         return tr("Grab: drag a body by any point; it keeps its physics, swings, spins and pushes things. Let go "
@@ -337,6 +339,9 @@ Viewport::Drag Viewport::hitGizmo(QPointF screen) const
         if (near(hx, kHandlePx + 2)) return Drag::GizmoScaleX;
         if (near(hy, kHandlePx + 2)) return Drag::GizmoScaleY;
         break;
+    case Gizmo::Resize:
+        if (hitResizeHandle(screen) >= 0) return Drag::Resize;
+        break;
     }
     return Drag::None;
 }
@@ -356,6 +361,33 @@ void Viewport::captureDragStart()
         dragLiveBody_.push_back(b ? 1 : 0);
     }
 }
+
+// --- resize gizmo ------------------------------------------------------------------------------------
+
+namespace {
+// Handle directions: corners, then edge midpoints.
+constexpr int kHandleDir[8][2] = {{-1, -1}, {1, -1}, {1, 1}, {-1, 1}, {0, -1}, {1, 0}, {0, 1}, {-1, 0}};
+
+Vec2 boxPoint(int hx, int hy, Vec2 lo, Vec2 hi)
+{
+    return {hx < 0 ? lo.x : (hx > 0 ? hi.x : 0.5 * (lo.x + hi.x)), hy < 0 ? lo.y : (hy > 0 ? hi.y : 0.5 * (lo.y + hi.y))};
+}
+
+// Local bounding box of an item's shapes.
+bool localBox(const ItemDef& d, Vec2& lo, Vec2& hi)
+{
+    thread_local ShapeList shapes;
+    d.type->shapes(d, shapes);
+    Aabb b;
+    for (const Shape& s : shapes) b.add(geom::shapeBounds(s, Pose{}));
+    if (!b.valid()) return false;
+    lo = b.lo;
+    hi = b.hi;
+    return true;
+}
+
+Vec2 resizeHandleLocal(int i, Vec2 lo, Vec2 hi) { return boxPoint(kHandleDir[i][0], kHandleDir[i][1], lo, hi); }
+} // namespace
 
 void Viewport::applyTransformDrag(QPointF screen, Qt::KeyboardModifiers mods)
 {
@@ -438,6 +470,54 @@ void Viewport::applyTransformDrag(QPointF screen, Qt::KeyboardModifiers mods)
         text = tr("Scale");
         break;
     }
+    case Drag::Resize: {
+        // Like resizing a window: the dragged handle follows the cursor, the
+        // opposite corner/edge stays put. Shift keeps the aspect ratio.
+        if (resizeHandle_ < 0) return;
+        const int hx = kHandleDir[resizeHandle_][0], hy = kHandleDir[resizeHandle_][1];
+        const Vec2 m = resizeFrame_.inverse(snap ? snapPoint(w) : w);
+        const Vec2 ext = resizeHi_ - resizeLo_;
+        double sx = 1, sy = 1;
+        if (hx > 0) sx = (m.x - resizeLo_.x) / ext.x;
+        if (hx < 0) sx = (resizeHi_.x - m.x) / ext.x;
+        if (hy > 0) sy = (m.y - resizeLo_.y) / ext.y;
+        if (hy < 0) sy = (resizeHi_.y - m.y) / ext.y;
+        sx = std::clamp(sx, 0.02, 50.0);
+        sy = std::clamp(sy, 0.02, 50.0);
+        if (mods & Qt::ShiftModifier) {
+            const double s = hx && hy ? std::max(sx, sy) : (hx ? sx : sy);
+            sx = sy = s;
+        }
+        if (!resizeMulti_) {
+            for (ItemDef& d : *items) {
+                Vec2 lo, hi;
+                if (!localBox(d, lo, hi)) continue;
+                const Vec2 fixedBefore = boxPoint(-hx, -hy, lo, hi);
+                d.type->scale(d, sx, sy);
+                if (!localBox(d, lo, hi)) continue;
+                const Vec2 fixedAfter = boxPoint(-hx, -hy, lo, hi);
+                d.type->translate(d, d.type->pose(d).applyVector(fixedBefore - fixedAfter));
+            }
+        } else {
+            const Vec2 anchor = boxPoint(-hx, -hy, resizeLo_, resizeHi_);
+            for (ItemDef& d : *items) {
+                if (!d.type->hasPose()) continue;
+                Pose p = d.type->pose(d);
+                // Axis-aligned items stretch; rotated ones scale uniformly.
+                const bool aligned = std::abs(p.s) < 1e-6 || std::abs(p.c) < 1e-6;
+                const bool swapped = std::abs(p.c) < 1e-6;
+                if (aligned)
+                    d.type->scale(d, swapped ? sy : sx, swapped ? sx : sy);
+                else
+                    d.type->scale(d, std::sqrt(sx * sy), std::sqrt(sx * sy));
+                p = d.type->pose(d);
+                p.p = anchor + Vec2{(p.p.x - anchor.x) * sx, (p.p.y - anchor.y) * sy};
+                d.type->setPose(d, p);
+            }
+        }
+        text = tr("Resize");
+        break;
+    }
     default: return;
     }
     }
@@ -478,6 +558,10 @@ void Viewport::mousePressEvent(QMouseEvent* e)
         if (g != Drag::None) {
             drag_ = g;
             selectionPivot(pivot_, gizmoFrame_);
+            if (g == Drag::Resize) {
+                resizeHandle_ = hitResizeHandle(e->position());
+                resizeBox(resizeFrame_, resizeLo_, resizeHi_, resizeMulti_);
+            }
             captureDragStart();
             return;
         }
@@ -530,25 +614,35 @@ void Viewport::mousePressEvent(QMouseEvent* e)
         }
         update();
         return;
-    case Tool::Ruler:
-        measure_.ruler = true;
-        measure_.a = measure_.b = snapPoint(pressWorld_);
+    case Tool::Ruler: {
+        const MeasurePoint p = measurePoint(snapMeasure(pressWorld_));
+        current_ = {};
+        current_.p[0] = current_.p[1] = p;
+        current_.points = 2;
+        measuring_ = true;
         drag_ = Drag::Ruler;
         update();
         return;
+    }
     case Tool::Protractor: {
-        const Vec2 p = snapPoint(pressWorld_);
-        if (measure_.protractorPoints == 0 || measure_.protractorPoints >= 3) {
-            measure_.protractor = true;
-            measure_.a = p;
-            measure_.b = measure_.c = p;
-            measure_.protractorPoints = 1;
-        } else if (measure_.protractorPoints == 1) {
-            measure_.b = measure_.c = p;
-            measure_.protractorPoints = 2;
+        MeasurePoint p = measurePoint(snapMeasure(pressWorld_));
+        if (!measuring_) {
+            current_ = {};
+            current_.angle = true;
+            current_.p[0] = current_.p[1] = current_.p[2] = p;
+            current_.points = 1;
+            measuring_ = true;
         } else {
-            measure_.c = p;
-            measure_.protractorPoints = 3;
+            if (e->modifiers() & Qt::ShiftModifier) p = {constrainAngle(resolve(current_.p[0]), p.world), 0, {}};
+            if (current_.points == 1) {
+                current_.p[1] = current_.p[2] = p;
+                current_.points = 2;
+            } else {
+                current_.p[2] = p;
+                current_.points = 3;
+                measurements_.push_back(current_);
+                measuring_ = false;
+            }
         }
         update();
         return;
@@ -612,6 +706,7 @@ void Viewport::mouseMoveEvent(QMouseEvent* e)
     case Drag::GizmoScaleX:
     case Drag::GizmoScaleY:
     case Drag::GizmoScaleU:
+    case Drag::Resize:
         applyTransformDrag(pos, e->modifiers());
         return;
     case Drag::BoxSelect: {
@@ -634,10 +729,17 @@ void Viewport::mouseMoveEvent(QMouseEvent* e)
         if (stroke_.empty() || distance(stroke_.back(), cursorWorld_) * ppm_ >= 2.0) stroke_.push_back(cursorWorld_);
         update();
         return;
-    case Drag::Ruler:
-        measure_.b = snapPoint(cursorWorld_);
+    case Drag::Ruler: {
+        MeasurePoint p = measurePoint(snapMeasure(cursorWorld_));
+        hoverSnap_ = snapMeasure(cursorWorld_);
+        if (e->modifiers() & Qt::ShiftModifier) {
+            p = {constrainAngle(resolve(current_.p[0]), cursorWorld_), 0, {}};
+            hoverSnap_ = {};
+        }
+        current_.p[1] = p;
         update();
         return;
+    }
     case Drag::Grab:
         sim_->moveGrab(cursorWorld_);
         update();
@@ -652,9 +754,32 @@ void Viewport::mouseMoveEvent(QMouseEvent* e)
             hover_ = h;
             update();
         }
-        setCursor(g != Drag::None ? Qt::SizeAllCursor : (h ? Qt::PointingHandCursor : Qt::ArrowCursor));
-    } else if (tool_ == Tool::Protractor && measure_.protractorPoints == 2) {
-        measure_.c = snapPoint(cursorWorld_);
+        Qt::CursorShape shape = g != Drag::None ? Qt::SizeAllCursor : (h ? Qt::PointingHandCursor : Qt::ArrowCursor);
+        if (g == Drag::Resize) {
+            // Resize cursor along the handle's direction on screen (y down).
+            Pose f;
+            Vec2 lo, hi;
+            bool multi;
+            const int i = hitResizeHandle(pos);
+            if (i >= 0 && resizeBox(f, lo, hi, multi)) {
+                const Vec2 d = f.applyVector({double(kHandleDir[i][0]), double(kHandleDir[i][1])});
+                double a = std::atan2(d.y, d.x); // world y up = screen up
+                a = std::fmod(a + 2 * kPi, kPi);
+                const int sector = int(std::lround(a / (kPi / 4))) % 4;
+                static const Qt::CursorShape shapes[4] = {Qt::SizeHorCursor, Qt::SizeBDiagCursor, Qt::SizeVerCursor,
+                                                          Qt::SizeFDiagCursor};
+                shape = shapes[sector];
+            }
+        }
+        setCursor(shape);
+    } else if (tool_ == Tool::Ruler || tool_ == Tool::Protractor) {
+        hoverSnap_ = snapMeasure(cursorWorld_);
+        if (measuring_ && current_.angle) {
+            MeasurePoint p = measurePoint(hoverSnap_);
+            if (e->modifiers() & Qt::ShiftModifier) p = {constrainAngle(resolve(current_.p[0]), cursorWorld_), 0, {}};
+            current_.p[current_.points == 1 ? 1 : 2] = p; // preview the arm being placed
+            if (current_.points == 1) current_.p[2] = p;
+        }
         update();
     } else if (tool_ == Tool::Grab) {
         const ItemId h = pick(pos, true);
@@ -688,7 +813,14 @@ void Viewport::mouseReleaseEvent(QMouseEvent* e)
     case Drag::GizmoRotate:
     case Drag::GizmoScaleX:
     case Drag::GizmoScaleY:
-    case Drag::GizmoScaleU: doc_->endContinuousEdit(); break;
+    case Drag::GizmoScaleU:
+    case Drag::Resize: doc_->endContinuousEdit(); break;
+    case Drag::Ruler:
+        // Pin it unless it was just a click.
+        if (distance(resolve(current_.p[0]), resolve(current_.p[1])) * ppm_ >= 3.0) measurements_.push_back(current_);
+        measuring_ = false;
+        update();
+        break;
     case Drag::BoxSelect: update(); break;
     case Drag::Grab:
         sim_->release(); // the body keeps its velocity: letting go while moving throws it
@@ -792,8 +924,17 @@ void Viewport::keyPressEvent(QKeyEvent* e)
         return;
     }
     switch (e->key()) {
+    case Qt::Key_Backspace:
+        if ((tool_ == Tool::Ruler || tool_ == Tool::Protractor) && !measurements_.empty() && !measuring_) {
+            measurements_.pop_back();
+            update();
+        }
+        return;
     case Qt::Key_Escape:
-        if (tool_ == Tool::Connect && connectHasA_) {
+        if (measuring_) {
+            measuring_ = false;
+            update();
+        } else if (tool_ == Tool::Connect && connectHasA_) {
             connectHasA_ = false;
             update();
         } else if (tool_ != Tool::Select) {
@@ -1088,6 +1229,22 @@ void Viewport::drawSelectionAndGizmo()
         batch_.rectFill(Layer::Overlay, pivot - Vec2{h, h}, pivot + Vec2{h, h}, hl.withAlpha(160));
         break;
     }
+    case Gizmo::Resize: {
+        Pose f;
+        Vec2 lo, hi;
+        bool multi;
+        if (!resizeBox(f, lo, hi, multi)) break;
+        const Vec2 corners[4] = {f.apply(lo), f.apply({hi.x, lo.y}), f.apply(hi), f.apply({lo.x, hi.y})};
+        batch_.polyline(Layer::Overlay, corners, 4, true, 1.5f, hl);
+        for (int i = 0; i < 8; ++i) {
+            const Vec2 c = f.apply(resizeHandleLocal(i, lo, hi));
+            const double s = (i < 4 ? 1.0 : 0.8) * h;
+            batch_.rectFill(Layer::Overlay, c - Vec2{s, s}, c + Vec2{s, s}, theme_.background);
+            const Vec2 q[4] = {c + Vec2{-s, -s}, c + Vec2{s, -s}, c + Vec2{s, s}, c + Vec2{-s, s}};
+            batch_.polyline(Layer::Overlay, q, 4, true, 1.5f, hl);
+        }
+        break;
+    }
     }
 }
 
@@ -1117,38 +1274,214 @@ void Viewport::drawToolPreview()
             batch_.dashed(Layer::Overlay, snapPoint(cursorWorld_), stroke_.front(), 1.0f, hl.withAlpha(120));
         }
     }
-    const Color tc = theme_.text;
-    if (measure_.ruler) {
-        const Vec2 a = measure_.a, b = measure_.b;
+    for (const Measurement& m : measurements_) drawMeasurement(m, false);
+    if (measuring_) drawMeasurement(current_, true);
+    if (tool_ == Tool::Ruler || tool_ == Tool::Protractor) drawSnap(hoverSnap_);
+}
+
+// --- measuring --------------------------------------------------------------------------------------
+
+namespace {
+Vec2 closestOnSegment(Vec2 p, Vec2 a, Vec2 b)
+{
+    const Vec2 d = b - a;
+    const double l2 = dot(d, d);
+    const double t = l2 > 0 ? std::clamp(dot(p - a, d) / l2, 0.0, 1.0) : 0.0;
+    return a + d * t;
+}
+} // namespace
+
+Viewport::Snap Viewport::snapMeasure(Vec2 w) const
+{
+    const double tol = 10.0 / ppm_;
+    Snap best;
+    double bestDist = tol;
+    int bestPri = 99;
+    thread_local ShapeList shapes;
+    for (const ItemDef& d : doc_->scene().items) {
+        const ItemKind k = d.type->kind();
+        if (k == ItemKind::Group || k == ItemKind::World || !d.type->hasPose() || !doc_->effectiveVisible(d)) continue;
+        if (sim_->live() && k == ItemKind::Body && !bodySnap(d.id)) continue;
+        Pose p;
+        if (!pose(d.id, p)) continue;
+        Aabb box = d.type->bounds(d, *this);
+        if (!box.valid()) continue;
+        box.inflate(tol);
+        if (!box.contains(w)) continue;
+        const Vec2 l = p.inverse(w);
+        auto consider = [&](Vec2 local, Snap::Kind kind, int pri) {
+            const Vec2 wp = p.apply(local);
+            const double dist = distance(wp, w);
+            if (dist > tol || pri > bestPri || (pri == bestPri && dist >= bestDist)) return;
+            best = {wp, d.id, local, kind};
+            bestDist = dist;
+            bestPri = pri;
+        };
+        consider({0, 0}, Snap::Centre, 1);
+        d.type->shapes(d, shapes);
+        for (const Shape& sh : shapes) {
+            switch (sh.kind) {
+            case Shape::Polygon:
+                for (int i = 0; i < sh.count; ++i) {
+                    const Vec2 a = sh.verts[size_t(i)], b = sh.verts[size_t((i + 1) % sh.count)];
+                    consider(a, Snap::Vertex, 0);
+                    consider((a + b) * 0.5, Snap::Vertex, 0); // edge midpoints count as key points
+                    consider(closestOnSegment(l, a, b), Snap::Edge, 2);
+                }
+                break;
+            case Shape::Circle:
+                consider(sh.a, Snap::Centre, 1);
+                if (length(l - sh.a) > 1e-9) consider(sh.a + normalized(l - sh.a) * sh.radius, Snap::Edge, 2);
+                break;
+            case Shape::Capsule: {
+                consider(sh.a, Snap::Centre, 1);
+                consider(sh.b, Snap::Centre, 1);
+                const Vec2 c = closestOnSegment(l, sh.a, sh.b);
+                if (length(l - c) > 1e-9) consider(c + normalized(l - c) * sh.radius, Snap::Edge, 2);
+                break;
+            }
+            case Shape::Segment:
+                consider(sh.a, Snap::Vertex, 0);
+                consider(sh.b, Snap::Vertex, 0);
+                consider(closestOnSegment(l, sh.a, sh.b), Snap::Edge, 2);
+                break;
+            }
+        }
+    }
+    if (best.kind != Snap::None) return best;
+    if (snap_) return {snapPoint(w), 0, {}, Snap::Grid};
+    return {w, 0, {}, Snap::None};
+}
+
+Vec2 Viewport::resolve(const MeasurePoint& p) const
+{
+    Pose pose_;
+    if (p.item && pose(p.item, pose_)) return pose_.apply(p.local);
+    return p.world;
+}
+
+Vec2 Viewport::constrainAngle(Vec2 from, Vec2 to) const
+{
+    const Vec2 d = to - from;
+    const double step = kPi / 12.0;
+    const double a = std::round(std::atan2(d.y, d.x) / step) * step;
+    const Vec2 u{std::cos(a), std::sin(a)};
+    return from + u * dot(d, u);
+}
+
+void Viewport::clearMeasurements()
+{
+    measurements_.clear();
+    measuring_ = false;
+    update();
+}
+
+void Viewport::drawSnap(const Snap& s)
+{
+    const Color hl = theme_.highlight;
+    const double r = 5.0 / ppm_;
+    switch (s.kind) {
+    case Snap::Vertex: {
+        const Vec2 q[4] = {s.world + Vec2{-r, -r}, s.world + Vec2{r, -r}, s.world + Vec2{r, r}, s.world + Vec2{-r, r}};
+        batch_.polyline(Layer::Overlay, q, 4, true, 1.5f, hl);
+        break;
+    }
+    case Snap::Centre:
+        batch_.circleOutline(Layer::Overlay, s.world, r, hl, 1.5f);
+        batch_.disc(Layer::Overlay, s.world, r * 0.3, hl, hl);
+        break;
+    case Snap::Edge:
+        batch_.line(Layer::Overlay, s.world + Vec2{-r, -r}, s.world + Vec2{r, r}, 1.5f, hl);
+        batch_.line(Layer::Overlay, s.world + Vec2{-r, r}, s.world + Vec2{r, -r}, 1.5f, hl);
+        break;
+    case Snap::Grid: batch_.disc(Layer::Overlay, s.world, r * 0.4, hl.withAlpha(180), hl.withAlpha(180)); break;
+    case Snap::None: break;
+    }
+}
+
+void Viewport::drawMeasurement(const Measurement& m, bool active)
+{
+    const Color tc = active ? theme_.highlight : theme_.text;
+    const Vec2 a = resolve(m.p[0]);
+    // Points attached to items get a ring: they follow the item.
+    auto endpoint = [&](const MeasurePoint& p, Vec2 at) {
+        if (p.item)
+            batch_.circleOutline(Layer::Overlay, at, 4.0 / ppm_, tc, 1.5f);
+        else
+            batch_.disc(Layer::Overlay, at, 2.5 / ppm_, tc, tc);
+    };
+    if (!m.angle) {
+        const Vec2 b = resolve(m.p[1]);
         batch_.line(Layer::Overlay, a, b, 2.0f, tc);
         const Vec2 n = perp(normalized(b - a)) * (6.0 / ppm_);
         batch_.line(Layer::Overlay, a - n, a + n, 2.0f, tc);
         batch_.line(Layer::Overlay, b - n, b + n, 2.0f, tc);
-        batch_.dashed(Layer::Overlay, a, {b.x, a.y}, 1.0f, theme_.dim);
-        batch_.dashed(Layer::Overlay, {b.x, a.y}, b, 1.0f, theme_.dim);
+        endpoint(m.p[0], a);
+        endpoint(m.p[1], b);
         static const QString dLabel = QStringLiteral("d = "), mUnit = QStringLiteral(" m");
         static const QString dxLabel = QStringLiteral("Δx = "), dyLabel = QStringLiteral("Δy = ");
         batch_.valueLabel((a + b) * 0.5, dLabel, distance(a, b), mUnit, 3, tc, 8, -14);
-        batch_.valueLabel({(a.x + b.x) * 0.5, a.y}, dxLabel, b.x - a.x, mUnit, 3, theme_.dim, 0, 14);
-        batch_.valueLabel({b.x, (a.y + b.y) * 0.5}, dyLabel, b.y - a.y, mUnit, 3, theme_.dim, 8, 0);
-    }
-    if (measure_.protractor && measure_.protractorPoints >= 1) {
-        const Vec2 v = measure_.a;
-        batch_.disc(Layer::Overlay, v, 3.0 / ppm_, tc, tc);
-        if (measure_.protractorPoints >= 2) {
-            batch_.line(Layer::Overlay, v, measure_.b, 2.0f, tc);
-            batch_.line(Layer::Overlay, v, measure_.c, 2.0f, tc);
-            const double a0 = std::atan2(measure_.b.y - v.y, measure_.b.x - v.x);
-            const double a1 = std::atan2(measure_.c.y - v.y, measure_.c.x - v.x);
-            double da = wrapAngle(a1 - a0);
-            const double r = 30.0 / ppm_;
-            batch_.arc(Layer::Overlay, v, r, a0, a0 + da, 1.5f, tc, 24);
-            static const QString thetaLabel = QStringLiteral("θ = "), degUnit = QStringLiteral("°");
-            const double mid = a0 + da * 0.5;
-            batch_.valueLabel(v + Vec2{std::cos(mid), std::sin(mid)} * (r * 1.6), thetaLabel, std::abs(da) * kDegPerRad,
-                              degUnit, 1, tc);
+        if (active) {
+            batch_.dashed(Layer::Overlay, a, {b.x, a.y}, 1.0f, theme_.dim);
+            batch_.dashed(Layer::Overlay, {b.x, a.y}, b, 1.0f, theme_.dim);
+            batch_.valueLabel({(a.x + b.x) * 0.5, a.y}, dxLabel, b.x - a.x, mUnit, 3, theme_.dim, 0, 14);
+            batch_.valueLabel({b.x, (a.y + b.y) * 0.5}, dyLabel, b.y - a.y, mUnit, 3, theme_.dim, 8, 0);
         }
+        return;
     }
+    endpoint(m.p[0], a);
+    if (m.points < 2 && !active) return;
+    const Vec2 b = resolve(m.p[1]), c = resolve(m.p[2]);
+    batch_.line(Layer::Overlay, a, b, 2.0f, tc);
+    batch_.line(Layer::Overlay, a, c, 2.0f, tc);
+    endpoint(m.p[1], b);
+    endpoint(m.p[2], c);
+    if (distance(a, b) < 1e-9 || distance(a, c) < 1e-9) return;
+    const double a0 = std::atan2(b.y - a.y, b.x - a.x);
+    const double a1 = std::atan2(c.y - a.y, c.x - a.x);
+    const double da = wrapAngle(a1 - a0);
+    const double r = std::min(30.0 / ppm_, 0.5 * std::min(distance(a, b), distance(a, c)));
+    batch_.arc(Layer::Overlay, a, r, a0, a0 + da, 1.5f, tc, 24);
+    static const QString thetaLabel = QStringLiteral("θ = "), degUnit = QStringLiteral("°");
+    const double mid = a0 + da * 0.5;
+    batch_.valueLabel(a + Vec2{std::cos(mid), std::sin(mid)} * (std::max(r, 20.0 / ppm_) * 1.6), thetaLabel,
+                      std::abs(da) * kDegPerRad, degUnit, 1, tc);
+}
+
+bool Viewport::resizeBox(Pose& frame, Vec2& lo, Vec2& hi, bool& multi) const
+{
+    const QList<ItemId> targets = transformTargets();
+    if (targets.isEmpty()) return false;
+    if (targets.size() == 1) {
+        const ItemDef* d = doc_->item(targets[0]);
+        if (!d->type->hasPose() || !pose(d->id, frame) || !localBox(*d, lo, hi)) return false;
+        multi = false;
+        return hi.x - lo.x > 1e-9 && hi.y - lo.y > 1e-9;
+    }
+    Aabb box;
+    for (ItemId id : targets) {
+        const ItemDef* d = doc_->item(id);
+        box.add(d->type->bounds(*d, *this));
+    }
+    if (!box.valid()) return false;
+    frame = Pose{};
+    lo = box.lo;
+    hi = box.hi;
+    multi = true;
+    return hi.x - lo.x > 1e-9 && hi.y - lo.y > 1e-9;
+}
+
+int Viewport::hitResizeHandle(QPointF screen) const
+{
+    Pose f;
+    Vec2 lo, hi;
+    bool multi;
+    if (!resizeBox(f, lo, hi, multi)) return -1;
+    for (int i = 0; i < 8; ++i) {
+        const QPointF h = toScreen(f.apply(resizeHandleLocal(i, lo, hi)));
+        if (std::hypot(screen.x() - h.x(), screen.y() - h.y()) <= kHandlePx + 3) return i;
+    }
+    return -1;
 }
 
 void Viewport::buildFrame()

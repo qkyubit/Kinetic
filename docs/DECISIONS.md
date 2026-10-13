@@ -364,3 +364,19 @@ body whose origin passes the world limit (default 10 km, at most 90 km) is
 frozen: velocity zeroed and disabled in Box2D, excluded from energies, and
 restored as frozen from keyframes. Dragging it back into the world enables it
 again. A grab/throw fuzz over every example runs with Box2D assertions on.
+
+**Measurements are UI state that can follow bodies.** Ruler and protractor
+points snap to object key points (vertices and edge midpoints first, then
+centres, then the nearest edge point, then the grid) within 10 px; a snapped
+point keeps the item and its local coordinates, so it moves with the body and
+the readout updates live. Measurements are pinned until cleared, are not
+saved in the scene, and are cleared when another scene is opened.
+
+**The resize box scales in the item's own frame.** For one item the box is the
+local bounding box of its shapes, so rotated items resize along their own
+axes; after `ItemType::scale` the item is moved so the opposite corner or edge
+of its new local box is where it was (this also handles items such as circles
+that scale uniformly). For several items the box is their world bounding box:
+positions stretch away from the fixed corner, axis-aligned items stretch, and
+rotated ones scale uniformly. Live bodies follow the same rule as other live
+drags (pose through the simulation, size through the document).

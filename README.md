@@ -54,8 +54,13 @@ simulation runs), **Analysis** (vectors, trails, energy, field overlay),
 (View menu). **Grab** (H) picks up bodies while simulating: they keep their
 physics, swing and spin around the grip, push other bodies, and fly off with
 their momentum when you let go. WASD pans the camera (Shift: faster); other
-tools: Select Q, Move/Rotate/Scale gizmos T/E/R, Draw B, Ruler M, Protractor
-O, Probe P. The playback bar has Play/Pause (Space), Step, Reset, recording,
+tools: Select Q, Move/Rotate/Scale gizmos T/E/R, Resize box Y (drag a corner or
+edge like a window; Shift keeps proportions), Draw B, Ruler M, Protractor O,
+Probe P. The ruler and protractor snap to corners, edge midpoints, centres and
+edges (vertices win), stay on screen until cleared (Backspace removes the
+last, Tools → Clear Measurements all), and points snapped to a body follow it,
+so distances and angles update live while simulating. Shift locks them to 15°
+steps. The playback bar has Play/Pause (Space), Step, Reset, recording,
 speed 0.1×–10× and a timeline you can scrub; editing while scrubbed back
 branches the timeline. **File → Save Replay** stores the initial scene and
 every edit, and plays back bit-identically. Graphs: select bodies and use

@@ -78,6 +78,42 @@ int main(int argc, char** argv)
              w.document()->setSelection({w.document()->scene().items[6].id});
              w.viewport()->setGizmo(Viewport::Gizmo::Scale);
          }},
+        {"gizmo-resize",
+         [](MainWindow& w) {
+             editorScene(w);
+             w.document()->setSelection({w.document()->scene().items[6].id});
+             w.viewport()->setGizmo(Viewport::Gizmo::Resize);
+         }},
+        {"measure",
+         [](MainWindow& w) {
+             editorScene(w);
+             w.document()->setSelection({});
+             Viewport* v = w.viewport();
+             auto click = [v](Vec2 at, bool drag = false, Vec2 to = {}) {
+                 const QPoint a = v->toScreen(at).toPoint();
+                 QTest::mousePress(v, Qt::LeftButton, {}, a);
+                 if (drag) {
+                     const QPointF b = v->toScreen(to);
+                     QMouseEvent move(QEvent::MouseMove, b, v->mapToGlobal(b), Qt::NoButton, Qt::LeftButton, {});
+                     QApplication::sendEvent(v, &move);
+                     QTest::mouseRelease(v, Qt::LeftButton, {}, b.toPoint());
+                 } else {
+                     QTest::mouseRelease(v, Qt::LeftButton, {}, a);
+                 }
+             };
+             const auto& items = w.document()->scene().items;
+             const Aabb a = items[3].type->bounds(items[3], *v), b = items[6].type->bounds(items[6], *v);
+             v->setTool(Viewport::Tool::Ruler);
+             click(a.hi, true, b.center());
+             v->setTool(Viewport::Tool::Protractor);
+             click(b.center());
+             click({b.hi.x, b.center().y});
+             click(a.hi);
+             // Leave the cursor over a corner to show the snap marker.
+             const QPointF hover = v->toScreen({a.lo.x, a.hi.y});
+             QMouseEvent move(QEvent::MouseMove, hover, v->mapToGlobal(hover), Qt::NoButton, Qt::NoButton, {});
+             QApplication::sendEvent(v, &move);
+         }},
         {"stress",
          [](MainWindow& w) {
              w.openExample(QStringLiteral("stress"));
@@ -132,6 +168,7 @@ int main(int argc, char** argv)
         MainWindow w;
         w.resize(1400, 860);
         w.show();
+        w.showStartPage(false);
         settle(300);
         s.run(w);
         settle(500);

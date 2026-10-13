@@ -85,6 +85,7 @@ private:
     QAction *selectToolAct_, *moveAct_, *rotateAct_, *scaleAct_, *rulerAct_, *protractorAct_, *drawAct_;
     QAction *snapAct_, *gridAct_, *zoomFitAct_, *resetLayoutAct_, *statsAct_;
     QAction *probeAct_, *grabAct_, *graphAct_, *saveReplayAct_, *openReplayAct_;
+    QAction *resizeAct_, *clearMeasureAct_;
     QMenu* viewMenu_;
     QMenu* examplesMenu_;
 };

@@ -203,8 +203,14 @@ void MainWindow::buildActions()
         tools->addAction(a);
     }
     selectToolAct_->setChecked(true);
+    resizeAct_ = act(tr("Resi&ze Box"), QStringLiteral("transform-crop-and-resize"), fb, QKeySequence(Qt::Key_Y));
+    resizeAct_->setToolTip(tr("Resize like a window: drag a corner or edge handle; the opposite side stays put. "
+                              "Shift keeps the proportions (Y)"));
+    clearMeasureAct_ = act(tr("&Clear Measurements"), QStringLiteral("edit-clear"), fb,
+                           QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M));
+    connect(clearMeasureAct_, &QAction::triggered, viewport_, &Viewport::clearMeasurements);
     auto* gizmos = new QActionGroup(this);
-    for (QAction* a : {moveAct_, rotateAct_, scaleAct_}) {
+    for (QAction* a : {moveAct_, rotateAct_, scaleAct_, resizeAct_}) {
         a->setCheckable(true);
         gizmos->addAction(a);
     }
@@ -230,6 +236,10 @@ void MainWindow::buildActions()
     connect(scaleAct_, &QAction::triggered, this, [this] {
         viewport_->setTool(Viewport::Tool::Select);
         viewport_->setGizmo(Viewport::Gizmo::Scale);
+    });
+    connect(resizeAct_, &QAction::triggered, this, [this] {
+        viewport_->setTool(Viewport::Tool::Select);
+        viewport_->setGizmo(Viewport::Gizmo::Resize);
     });
 
     snapAct_ = act(tr("S&nap to Grid"), QStringLiteral("snap-nodes-cusp"), fb, QKeySequence(Qt::Key_N));
@@ -266,7 +276,7 @@ void MainWindow::buildActions()
     main->addActions({undoAct_, redoAct_});
     auto* toolBar = addToolBar(tr("Tools"));
     toolBar->setObjectName(QStringLiteral("toolsToolBar"));
-    toolBar->addActions({selectToolAct_, grabAct_, moveAct_, rotateAct_, scaleAct_});
+    toolBar->addActions({selectToolAct_, grabAct_, moveAct_, rotateAct_, scaleAct_, resizeAct_});
     toolBar->addSeparator();
     toolBar->addActions({drawAct_, rulerAct_, protractorAct_, probeAct_});
     toolBar->addSeparator();
@@ -354,9 +364,10 @@ void MainWindow::buildMenus()
     simMenu->addActions({playback_->recordAction(), playback_->rewindAction()});
 
     QMenu* tools = menuBar()->addMenu(tr("&Tools"));
-    tools->addActions({selectToolAct_, grabAct_, moveAct_, rotateAct_, scaleAct_});
+    tools->addActions({selectToolAct_, grabAct_, moveAct_, rotateAct_, scaleAct_, resizeAct_});
     tools->addSeparator();
     tools->addActions({drawAct_, rulerAct_, protractorAct_, probeAct_});
+    tools->addAction(clearMeasureAct_);
 
     QMenu* settings = menuBar()->addMenu(tr("S&ettings"));
     settings->addAction(themedIcon(QStringLiteral("configure"), QStringLiteral(":/icons/tool.svg")), tr("Configure &Physics…"),

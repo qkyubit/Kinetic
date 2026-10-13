@@ -21,7 +21,7 @@ void dropItem(Viewport& vp, const QString& typeId, Vec2 world)
     QMimeData mime;
     mime.setData(QLatin1String(ToolboxPanel::mimeType()), typeId.toUtf8());
     const QPointF pos = vp.toScreen(world);
-    QDragEnterEvent enter(pos.toPoint(), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QDragEnterEvent enter(pos, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     QCoreApplication::sendEvent(&vp, &enter);
     QDropEvent drop(pos, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     QCoreApplication::sendEvent(&vp, &drop);

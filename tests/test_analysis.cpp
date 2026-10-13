@@ -168,6 +168,110 @@ private slots:
         QCOMPARE(fresh.world.d(fresh.world.type->schema().indexOf("fieldSleepDelay")), 12.0);
     }
 
+    void resizeBoxLikeAWindow()
+    {
+        SceneBuilder sb;
+        const ItemId box = sb.add("body.box", {0, 0}, {{"width", 2.0}, {"height", 1.0}});
+        const ItemId tilted = sb.add("body.box", {6, 0}, {{"width", 2.0}, {"height", 1.0}, {"angle", kPi / 2}});
+        Document doc;
+        doc.reset(sb.scene);
+        SimController sim(&doc);
+        Viewport view(&doc, &sim);
+        view.resize(800, 600);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setCamera({3, 0}, 50);
+        view.setSnapping(false);
+        view.setGizmo(Viewport::Gizmo::Resize);
+        auto drag = [&](Vec2 from, Vec2 to, Qt::KeyboardModifiers mods = {}) {
+            const QPoint a = view.toScreen(from).toPoint(), b = view.toScreen(to).toPoint();
+            QTest::mousePress(&view, Qt::LeftButton, mods, a);
+            for (int i = 1; i <= 5; ++i) {
+                const QPointF p = QPointF(a) + QPointF(b - a) * (i / 5.0);
+                QMouseEvent move(QEvent::MouseMove, p, view.mapToGlobal(p), Qt::NoButton, Qt::LeftButton, mods);
+                QApplication::sendEvent(&view, &move);
+            }
+            QTest::mouseRelease(&view, Qt::LeftButton, mods, b);
+        };
+        auto prop = [&](ItemId id, const char* key) {
+            const ItemDef* d = doc.item(id);
+            return d->props[size_t(d->type->schema().indexOf(QLatin1String(key)))];
+        };
+        // Top-right corner of the 2 x 1 box to (3, 1.5): bottom-left corner stays at (-1, -0.5).
+        doc.setSelection({box});
+        drag({1, 0.5}, {3, 1.5});
+        QVERIFY(std::abs(std::get<double>(prop(box, "width")) - 4.0) < 0.03);
+        QVERIFY(std::abs(std::get<double>(prop(box, "height")) - 2.0) < 0.03);
+        Vec2 c = std::get<Vec2>(prop(box, "position"));
+        QVERIFY(distance(c, {1, 0.5}) < 0.03);
+        // Shift keeps proportions: drag the corner only right, both sides double again.
+        drag({3, 1.5}, {7, 1.5}, Qt::ShiftModifier);
+        QVERIFY(std::abs(std::get<double>(prop(box, "width")) - 8.0) < 0.05);
+        QVERIFY(std::abs(std::get<double>(prop(box, "height")) - 4.0) < 0.05);
+        // Rotated 90°: its local +x edge is world "up". Drag that edge up by 1 m:
+        // width grows by 1 and the opposite edge (world y = -1) stays put.
+        doc.setSelection({tilted});
+        drag({6, 1}, {6, 2});
+        QVERIFY(std::abs(std::get<double>(prop(tilted, "width")) - 3.0) < 0.03);
+        QVERIFY(std::abs(std::get<double>(prop(tilted, "height")) - 1.0) < 1e-9);
+        c = std::get<Vec2>(prop(tilted, "position"));
+        QVERIFY(distance(c, {6, 0.5}) < 0.03);
+        // One undo step per drag.
+        doc.undoStack()->undo();
+        QCOMPARE(std::get<double>(prop(tilted, "width")), 2.0);
+    }
+
+    void rulerSnapsPinsAndFollows()
+    {
+        SceneBuilder sb;
+        sb.add("body.ground", {0, -0.5}, {{"width", 20.0}});
+        const ItemId box = sb.add("body.box", {0, 3}, {{"width", 2.0}, {"height", 1.0}});
+        const ItemId ball = sb.add("body.circle", {4, 3}, {{"radius", 0.5}});
+        Document doc;
+        doc.reset(sb.scene);
+        SimController sim(&doc);
+        Viewport view(&doc, &sim);
+        view.resize(800, 600);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setCamera({2, 2}, 50);
+        view.setSnapping(false);
+        // Snapping priorities: a corner beats a nearby edge point; a circle centre.
+        Viewport::Snap s = view.snapMeasure({1.05, 3.45});
+        QCOMPARE(s.kind, Viewport::Snap::Vertex);
+        QCOMPARE(s.item, box);
+        QVERIFY(distance(s.world, {1, 3.5}) < 1e-9);
+        s = view.snapMeasure({4.08, 2.95});
+        QCOMPARE(s.kind, Viewport::Snap::Centre);
+        QCOMPARE(s.item, ball);
+        s = view.snapMeasure({0.3, 2.48}); // bottom edge, away from corners and midpoint
+        QCOMPARE(s.kind, Viewport::Snap::Edge);
+        QVERIFY(std::abs(s.world.y - 2.5) < 1e-9);
+        // Measure corner-to-centre with the ruler; it stays after the drag.
+        view.setTool(Viewport::Tool::Ruler);
+        const QPoint a = view.toScreen({1.05, 3.45}).toPoint(), b = view.toScreen({4.08, 2.95}).toPoint();
+        QTest::mousePress(&view, Qt::LeftButton, {}, a);
+        QMouseEvent move(QEvent::MouseMove, QPointF(b), view.mapToGlobal(QPointF(b)), Qt::NoButton, Qt::LeftButton, {});
+        QApplication::sendEvent(&view, &move);
+        QTest::mouseRelease(&view, Qt::LeftButton, {}, b);
+        QCOMPARE(view.measurements().size(), size_t(1));
+        const Viewport::Measurement m = view.measurements()[0];
+        QVERIFY(std::abs(distance(view.resolve(m.p[0]), view.resolve(m.p[1])) - std::hypot(3.0, 0.5)) < 1e-9);
+        // Both ends are attached: after the bodies fall onto the ground the measurement follows them.
+        sim.step(240);
+        QTRY_VERIFY_WITH_TIMEOUT(sim.live() && sim.snapshot().step == 240, 5000);
+        const Vec2 p0 = view.resolve(m.p[0]), p1 = view.resolve(m.p[1]);
+        QVERIFY(std::abs(p0.y - 1.0) < 0.02); // box top corner: resting box is 1 m tall
+        QVERIFY(std::abs(p1.y - 0.5) < 0.02); // ball centre
+        // Switching tools keeps it; Backspace in a measuring tool removes it.
+        view.setTool(Viewport::Tool::Select);
+        QCOMPARE(view.measurements().size(), size_t(1));
+        view.setTool(Viewport::Tool::Ruler);
+        QTest::keyClick(&view, Qt::Key_Backspace);
+        QVERIFY(view.measurements().empty());
+        sim.reset();
+    }
+
     void wasdPansCamera()
     {
         Document doc;

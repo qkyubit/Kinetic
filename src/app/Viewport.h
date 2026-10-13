@@ -26,7 +26,8 @@ class Viewport : public QRhiWidget, public SceneView {
     Q_OBJECT
 public:
     enum class Tool { Select, Connect, Draw, Ruler, Protractor, Probe, Grab };
-    enum class Gizmo { Move, Rotate, Scale };
+    // Resize: window-style box with corner and edge handles.
+    enum class Gizmo { Move, Rotate, Scale, Resize };
 
     Viewport(Document* doc, SimController* sim, QWidget* parent = nullptr);
     ~Viewport() override;
@@ -79,13 +80,31 @@ public:
     // Topmost selectable item at a screen point (bodies only if bodiesOnly).
     ItemId pick(QPointF screen, bool bodiesOnly = false) const;
 
-    // Ruler/protractor readouts for the overlay.
-    struct Measure {
-        bool ruler = false, protractor = false;
-        Vec2 a, b, c; // ruler: a->b; protractor: vertex a, arms b and c
-        int protractorPoints = 0;
+    // Ruler and protractor measurements. A point snapped to an item stores the
+    // item and the point in its frame, so it follows the item (live while simulating).
+    struct MeasurePoint {
+        Vec2 world;
+        ItemId item = 0;
+        Vec2 local;
     };
-    const Measure& measure() const { return measure_; }
+    struct Measurement {
+        bool angle = false;   // ruler: p[0] -> p[1]; angle: vertex p[0], arms p[1] and p[2]
+        MeasurePoint p[3];
+        int points = 0;
+    };
+    // What a measuring point snaps to: object vertices beat centres beat edges
+    // beat the grid (when grid snapping is on).
+    struct Snap {
+        enum Kind { None, Grid, Vertex, Centre, Edge };
+        Vec2 world;
+        ItemId item = 0;
+        Vec2 local;
+        Kind kind = None;
+    };
+    Snap snapMeasure(Vec2 world) const;
+    const std::vector<Measurement>& measurements() const { return measurements_; }
+    void clearMeasurements();
+    Vec2 resolve(const MeasurePoint& p) const;
     QString statusHint() const;
 
 signals:
@@ -118,7 +137,7 @@ protected:
 private:
     enum class Drag {
         None, Pending, Pan, BoxSelect, MoveItems, GizmoX, GizmoY, GizmoFree, GizmoRotate, GizmoScaleX,
-        GizmoScaleY, GizmoScaleU, Stroke, Ruler, Protractor, Grab
+        GizmoScaleY, GizmoScaleU, Stroke, Ruler, Protractor, Grab, Resize
     };
 
     void updateTheme();
@@ -191,7 +210,22 @@ private:
     Vec2 cursorWorld_;
     const ItemType* dropType_ = nullptr;
     Vec2 dropWorld_;
-    Measure measure_;
+    std::vector<Measurement> measurements_; // pinned until cleared
+    Measurement current_;                   // being placed
+    bool measuring_ = false;
+    Snap hoverSnap_;
+    MeasurePoint measurePoint(const Snap& s) const { return {s.world, s.item, s.local}; }
+    // Shift: the point at 15° steps from `from`, at the projected distance.
+    Vec2 constrainAngle(Vec2 from, Vec2 to) const;
+    void drawMeasurement(const Measurement& m, bool active);
+    void drawSnap(const Snap& s);
+    // Resize gizmo: the box (in `frame`), its handles (0-3 corners, 4-7 edges) and the drag state.
+    bool resizeBox(Pose& frame, Vec2& lo, Vec2& hi, bool& multi) const;
+    int hitResizeHandle(QPointF screen) const;
+    int resizeHandle_ = -1;
+    Pose resizeFrame_;
+    Vec2 resizeLo_, resizeHi_;
+    bool resizeMulti_ = false;
 
     std::unordered_set<ItemId> selected_;
     ItemDef ghost_;
