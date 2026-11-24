@@ -1,0 +1,47 @@
+app-id: io.github.qkyubit.Kinetic
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+command: kinetic
+finish-args:
+  # Minimal: Wayland display + GPU for QRhi rendering. No X11, network or
+  # filesystem; open/save goes through the xdg-desktop-portal file chooser.
+  - --socket=wayland
+  - --device=dri
+  # Drop the Plasma config file org.kde.Platform grants every app (colour-scheme
+  # sync). Its default session-bus names stay: Flathub forbids --no-talk-name.
+  - --nofilesystem=xdg-config/kdeglobals
+
+modules:
+  - name: box2d
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DBOX2D_SAMPLES=OFF
+      - -DBOX2D_UNIT_TESTS=OFF
+      - -DBOX2D_BENCHMARKS=OFF
+      - -DBOX2D_DOCS=OFF
+    cleanup:
+      - /include
+      - /lib
+    sources:
+      - type: git
+        url: https://github.com/erincatto/box2d.git
+        tag: v3.1.1
+        commit: 8c661469c9507d3ad6fbd2fea3f1aa71669c2fe3
+
+  - name: kinetic
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DKINETIC_BUILD_TESTS=OFF
+      - -DKINETIC_BUILD_TOOLS=OFF
+    sources:
+      - type: git
+        url: https://github.com/qkyubit/Kinetic.git
+        tag: v1.0.0
+        commit: 64993cfdfbaa79c5675273ff6713412f6cdbbd09
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
