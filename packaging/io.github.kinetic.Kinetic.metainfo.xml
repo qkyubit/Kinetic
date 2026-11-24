@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>io.github.kinetic.Kinetic</id>
-  <metadata_license>CC0-1.0</metadata_license>
+  <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
   <name>Kinetic</name>
   <summary>2D physics sandbox</summary>
@@ -24,6 +24,7 @@
       <li>Runs thousands of bodies at display frame rates</li>
     </ul>
   </description>
+  <url type="homepage">https://github.com/qkyubit/Kinetic</url>
   <launchable type="desktop-id">io.github.kinetic.Kinetic.desktop</launchable>
   <provides>
     <binary>kinetic</binary>

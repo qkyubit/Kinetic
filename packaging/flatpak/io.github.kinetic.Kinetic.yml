@@ -1,0 +1,52 @@
+app-id: io.github.kinetic.Kinetic
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+command: kinetic
+finish-args:
+  # Minimal: Wayland display + GPU for QRhi rendering. No X11, network or
+  # filesystem; open/save goes through the xdg-desktop-portal file chooser.
+  - --socket=wayland
+  - --device=dri
+  # Drop the defaults org.kde.Platform grants every app (Plasma colour-scheme
+  # sync, global menu). Cost: app uses Qt defaults instead of live Plasma theme.
+  - --nofilesystem=xdg-config/kdeglobals
+  - --no-talk-name=com.canonical.AppMenu.Registrar
+  - --no-talk-name=org.kde.kconfig.notify
+  - --no-talk-name=org.kde.KGlobalSettings
+
+modules:
+  - name: box2d
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DBOX2D_SAMPLES=OFF
+      - -DBOX2D_UNIT_TESTS=OFF
+      - -DBOX2D_BENCHMARKS=OFF
+      - -DBOX2D_DOCS=OFF
+    cleanup:
+      - /include
+      - /lib
+    sources:
+      - type: git
+        url: https://github.com/erincatto/box2d.git
+        tag: v3.1.1
+        commit: 8c661469c9507d3ad6fbd2fea3f1aa71669c2fe3
+
+  - name: kinetic
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DKINETIC_BUILD_TESTS=OFF
+      - -DKINETIC_BUILD_TOOLS=OFF
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - build
+          - build-release
+          - packaging/arch
+          - .flatpak-builder
+          - flatpak-build
+          - flatpak-repo
