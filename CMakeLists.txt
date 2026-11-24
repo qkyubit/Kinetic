@@ -89,14 +89,14 @@ file(GLOB KINETIC_ICONS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS r
 qt_add_resources(kinetic "kinetic_resources"
     PREFIX "/"
     BASE resources
-    FILES ${KINETIC_EXAMPLES} ${KINETIC_ICONS} resources/io.github.kinetic.Kinetic.svg)
+    FILES ${KINETIC_EXAMPLES} ${KINETIC_ICONS} resources/io.github.qkyubit.Kinetic.svg)
 
 # --- install ---------------------------------------------------------------------------------------
 include(GNUInstallDirs)
 install(TARGETS kinetic RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES packaging/io.github.kinetic.Kinetic.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-install(FILES packaging/io.github.kinetic.Kinetic.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
-install(FILES resources/io.github.kinetic.Kinetic.svg
+install(FILES packaging/io.github.qkyubit.Kinetic.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+install(FILES packaging/io.github.qkyubit.Kinetic.metainfo.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+install(FILES resources/io.github.qkyubit.Kinetic.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps)
 
 if(KINETIC_BUILD_TESTS)
@@ -119,7 +119,7 @@ if(KINETIC_BUILD_TOOLS)
     qt_add_resources(kinetic-screenshots "screenshot_resources"
         PREFIX "/"
         BASE resources
-        FILES ${KINETIC_EXAMPLES} ${KINETIC_ICONS} resources/io.github.kinetic.Kinetic.svg)
+        FILES ${KINETIC_EXAMPLES} ${KINETIC_ICONS} resources/io.github.qkyubit.Kinetic.svg)
 endif()
 if(KINETIC_BUILD_TOOLS)
     # Regenerates resources/examples/*.json from tools/make_examples.cpp.

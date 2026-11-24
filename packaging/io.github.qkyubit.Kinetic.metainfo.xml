@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.qkyubit.Kinetic</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Kinetic</name>
+  <summary>Build 2D physics scenes and measure them</summary>
+  <developer id="io.github.qkyubit">
+    <name>qkyubit</name>
+  </developer>
+  <description>
+    <p>
+      Kinetic is a native 2D physics sandbox. Build scenes from rigid bodies,
+      springs, ropes, joints, motors, pulleys and gears; add gravity zones,
+      wind, electric and magnetic fields, liquids and optical elements; then
+      run the simulation and measure it with graphs, force vectors, trails,
+      energy readouts and trigger timers.
+    </p>
+    <ul>
+      <li>SI units throughout, with a visible metres-to-pixels scale</li>
+      <li>Rewind, scrub and replay: every frame is reproduced exactly</li>
+      <li>Forces from formulas, parametric paths and ODEs solved with RK4</li>
+      <li>Ray optics with dispersion, total internal reflection and Fresnel reflection</li>
+      <li>Runs thousands of bodies at display frame rates</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.qkyubit.Kinetic.desktop</launchable>
+  <provides>
+    <binary>kinetic</binary>
+  </provides>
+  <url type="homepage">https://github.com/qkyubit/Kinetic</url>
+  <url type="bugtracker">https://github.com/qkyubit/Kinetic/issues</url>
+  <url type="vcs-browser">https://github.com/qkyubit/Kinetic</url>
+  <categories>
+    <category>Education</category>
+    <category>Science</category>
+    <category>Physics</category>
+  </categories>
+  <branding>
+    <color type="primary" scheme_preference="light">#8ecbf1</color>
+    <color type="primary" scheme_preference="dark">#1d5d8f</color>
+  </branding>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Force vectors on a running scene</caption>
+      <image>https://raw.githubusercontent.com/qkyubit/Kinetic/v1.0.0/packaging/screenshots/running.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Measuring distances and angles</caption>
+      <image>https://raw.githubusercontent.com/qkyubit/Kinetic/v1.0.0/packaging/screenshots/measure.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Five thousand bodies settling</caption>
+      <image>https://raw.githubusercontent.com/qkyubit/Kinetic/v1.0.0/packaging/screenshots/stress.png</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.0.0" date="2026-11-24">
+      <description>
+        <p>First public release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

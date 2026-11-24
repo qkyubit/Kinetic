@@ -41,7 +41,7 @@ Arch package (builds from this checkout, no network in `build()`):
 cd packaging/arch && makepkg -si
 ```
 
-The package installs `/usr/bin/kinetic`, `io.github.kinetic.Kinetic.desktop`,
+The package installs `/usr/bin/kinetic`, `io.github.qkyubit.Kinetic.desktop`,
 the AppStream metainfo and a scalable hicolor icon.
 
 ## Using it

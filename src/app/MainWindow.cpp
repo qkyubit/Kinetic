@@ -48,7 +48,7 @@ const QString kFileFilter = QObject::tr("Kinetic scenes (*.kinetic *.json);;All 
 MainWindow::MainWindow()
 {
     setObjectName(QStringLiteral("KineticMainWindow"));
-    setWindowIcon(QIcon(QStringLiteral(":/io.github.kinetic.Kinetic.svg")));
+    setWindowIcon(QIcon(QStringLiteral(":/io.github.qkyubit.Kinetic.svg")));
     doc_ = new Document(this);
     sim_ = new SimController(doc_, this);
     viewport_ = new Viewport(doc_, sim_, this);

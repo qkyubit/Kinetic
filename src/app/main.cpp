@@ -30,7 +30,7 @@ int main(int argc, char** argv)
     QApplication::setApplicationName(QStringLiteral("Kinetic"));
     QApplication::setOrganizationName(QStringLiteral("Kinetic"));
     QApplication::setApplicationVersion(QStringLiteral(KINETIC_VERSION));
-    QGuiApplication::setDesktopFileName(QStringLiteral("io.github.kinetic.Kinetic"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("io.github.qkyubit.Kinetic"));
     if (QIcon::themeName().isEmpty()) QIcon::setThemeName(QStringLiteral("breeze"));
 
     QCommandLineParser parser;

@@ -1,4 +1,4 @@
-app-id: io.github.kinetic.Kinetic
+app-id: io.github.qkyubit.Kinetic
 runtime: org.kde.Platform
 runtime-version: '6.11'
 sdk: org.kde.Sdk
@@ -8,12 +8,9 @@ finish-args:
   # filesystem; open/save goes through the xdg-desktop-portal file chooser.
   - --socket=wayland
   - --device=dri
-  # Drop the defaults org.kde.Platform grants every app (Plasma colour-scheme
-  # sync, global menu). Cost: app uses Qt defaults instead of live Plasma theme.
+  # Drop the Plasma config file org.kde.Platform grants every app (colour-scheme
+  # sync). Its default session-bus names stay: Flathub forbids --no-talk-name.
   - --nofilesystem=xdg-config/kdeglobals
-  - --no-talk-name=com.canonical.AppMenu.Registrar
-  - --no-talk-name=org.kde.kconfig.notify
-  - --no-talk-name=org.kde.KGlobalSettings
 
 modules:
   - name: box2d

@@ -55,7 +55,7 @@ StartPage::StartPage(QWidget* parent) : QWidget(parent)
 
     auto* left = new QVBoxLayout;
     auto* logo = new QLabel(this);
-    logo->setPixmap(QIcon(QStringLiteral(":/io.github.kinetic.Kinetic.svg")).pixmap(96, 96));
+    logo->setPixmap(QIcon(QStringLiteral(":/io.github.qkyubit.Kinetic.svg")).pixmap(96, 96));
     left->addWidget(logo);
     auto* title = new QLabel(tr("Kinetic"), this);
     QFont f = title->font();
